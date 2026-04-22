@@ -19,12 +19,17 @@ final class SearchViewModel: ObservableObject {
     @Published private(set) var results: [VideoSummary] = []
     @Published private(set) var isSearching = false
     @Published private(set) var isLoadingLanding = false
+    @Published private(set) var isLoadingMoreResults = false
     @Published private(set) var hasCommittedSearch = false
+    @Published private(set) var canLoadMoreResults = false
     @Published private(set) var errorMessage: String?
 
     private let apiClient: BiliAPIClient
     private var hasLoadedLanding = false
     private var suggestionTask: Task<Void, Never>?
+    private var currentSearchKeyword = ""
+    private var nextResultsPage = 1
+    private let resultsPageSize = 20
 
     init(apiClient: BiliAPIClient) {
         self.apiClient = apiClient
@@ -67,30 +72,40 @@ final class SearchViewModel: ObservableObject {
         addToHistory(keyword)
 
         do {
-            let refererKeyword = keyword.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? keyword
-            let data = try await apiClient.requestEnvelopeData(
-                path: BiliEndpoint.searchByType,
-                query: [
-                    "search_type": "video",
-                    "keyword": keyword,
-                    "page": "1",
-                    "page_size": "20",
-                    "platform": "pc",
-                    "web_location": "1430654"
-                ],
-                headers: [
-                    "origin": "https://search.bilibili.com",
-                    "referer": "https://search.bilibili.com/video?keyword=\(refererKeyword)"
-                ],
-                signedByWBI: true
-            )
-            results = JSONValue.dictionaries(data["result"]).map(VideoSummary.init)
+            let loadedResults = try await fetchSearchResults(keyword: keyword, page: 1)
+            currentSearchKeyword = keyword
+            nextResultsPage = 2
+            canLoadMoreResults = loadedResults.count >= resultsPageSize
+            results = loadedResults
         } catch {
             errorMessage = error.localizedDescription
             results = []
+            canLoadMoreResults = false
         }
 
         isSearching = false
+    }
+
+    func loadMoreResults() async {
+        guard hasCommittedSearch else { return }
+        guard !currentSearchKeyword.isEmpty else { return }
+        guard !isSearching else { return }
+        guard !isLoadingMoreResults else { return }
+        guard canLoadMoreResults else { return }
+
+        isLoadingMoreResults = true
+        defer { isLoadingMoreResults = false }
+
+        do {
+            let loadedResults = try await fetchSearchResults(keyword: currentSearchKeyword, page: nextResultsPage)
+            results.append(contentsOf: loadedResults.filter { incoming in
+                !results.contains(where: { $0.id == incoming.id })
+            })
+            nextResultsPage += 1
+            canLoadMoreResults = loadedResults.count >= resultsPageSize
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     func useKeyword(_ keyword: String) {
@@ -146,6 +161,27 @@ final class SearchViewModel: ObservableObject {
         } catch {
             suggestions = []
         }
+    }
+
+    private func fetchSearchResults(keyword: String, page: Int) async throws -> [VideoSummary] {
+        let refererKeyword = keyword.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? keyword
+        let data = try await apiClient.requestEnvelopeData(
+            path: BiliEndpoint.searchByType,
+            query: [
+                "search_type": "video",
+                "keyword": keyword,
+                "page": "\(page)",
+                "page_size": "\(resultsPageSize)",
+                "platform": "pc",
+                "web_location": "1430654"
+            ],
+            headers: [
+                "origin": "https://search.bilibili.com",
+                "referer": "https://search.bilibili.com/video?keyword=\(refererKeyword)"
+            ],
+            signedByWBI: true
+        )
+        return JSONValue.dictionaries(data["result"]).map(VideoSummary.init)
     }
 
     private func fetchSearchPlaceholder() async throws -> String {

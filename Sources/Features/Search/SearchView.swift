@@ -84,6 +84,7 @@ struct SearchView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(Color("AccentColor"))
+            .disabled(viewModel.isSearching)
         }
     }
 
@@ -141,6 +142,19 @@ struct SearchView: View {
                         .buttonStyle(.plain)
                     }
                 }
+
+                if viewModel.isLoadingMoreResults {
+                    ProgressView(L10n.loadingMore)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 8)
+                } else if viewModel.canLoadMoreResults {
+                    Button(L10n.loadMore) {
+                        Task { await viewModel.loadMoreResults() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color("AccentColor"))
+                    .frame(maxWidth: .infinity, alignment: .center)
+                }
             }
         }
     }
@@ -151,6 +165,18 @@ struct SearchView: View {
                 ProgressView(L10n.searchPanelLoading)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 20)
+            } else if viewModel.history.isEmpty &&
+                        viewModel.trendingKeywords.isEmpty &&
+                        viewModel.recommendedKeywords.isEmpty {
+                EmptyStateView(
+                    title: L10n.searchLandingEmptyTitle,
+                    subtitle: L10n.searchLandingEmptySubtitle,
+                    systemImage: "sparkles.rectangle.stack",
+                    actionTitle: L10n.searchLandingLoadAction,
+                    action: {
+                        Task { await viewModel.reloadLanding() }
+                    }
+                )
             }
 
             if !viewModel.history.isEmpty {

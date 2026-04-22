@@ -39,7 +39,11 @@ struct HomeView: View {
                         EmptyStateView(
                             title: L10n.homeEmptyTitle,
                             subtitle: L10n.homeEmptySubtitle,
-                            systemImage: "play.slash"
+                            systemImage: "play.slash",
+                            actionTitle: L10n.homeLoadAction,
+                            action: {
+                                Task { await viewModel.reload() }
+                            }
                         )
                     } else {
                         BiliSectionHeader(
@@ -53,6 +57,10 @@ struct HomeView: View {
                                 }
                                 .buttonStyle(.plain)
                             }
+                        }
+
+                        if viewModel.selectedFeed == .hot {
+                            loadMoreSection
                         }
                     }
                 }
@@ -157,5 +165,21 @@ struct HomeView: View {
                 .stroke(Color.white.opacity(0.7), lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(0.06), radius: 18, x: 0, y: 12)
+    }
+
+    @ViewBuilder
+    private var loadMoreSection: some View {
+        if viewModel.isLoadingMoreHot {
+            ProgressView(L10n.loadingMore)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 12)
+        } else if viewModel.canLoadMoreHot {
+            Button(L10n.loadMore) {
+                Task { await viewModel.loadMoreHotVideos() }
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Color("AccentColor"))
+            .frame(maxWidth: .infinity, alignment: .center)
+        }
     }
 }

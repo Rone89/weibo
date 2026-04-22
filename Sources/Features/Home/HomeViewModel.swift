@@ -23,10 +23,14 @@ final class HomeViewModel: ObservableObject {
     @Published private(set) var hotVideos: [VideoSummary] = []
     @Published private(set) var searchPlaceholder = ""
     @Published private(set) var isLoading = false
+    @Published private(set) var isLoadingMoreHot = false
+    @Published private(set) var canLoadMoreHot = false
     @Published private(set) var errorMessage: String?
 
     private let apiClient: BiliAPIClient
     private var hasLoaded = false
+    private var nextHotPage = 1
+    private let hotPageSize = 20
 
     init(apiClient: BiliAPIClient) {
         self.apiClient = apiClient
@@ -44,17 +48,40 @@ final class HomeViewModel: ObservableObject {
         do {
             async let placeholder = fetchSearchPlaceholder()
             async let recommended = fetchRecommendedVideos()
-            async let hot = fetchHotVideos()
+            async let hot = fetchHotVideos(page: 1)
 
             searchPlaceholder = try await placeholder
             recommendedVideos = try await recommended
-            hotVideos = try await hot
+            let loadedHotVideos = try await hot
+            hotVideos = loadedHotVideos
+            nextHotPage = 2
+            canLoadMoreHot = loadedHotVideos.count >= hotPageSize
             hasLoaded = true
         } catch {
             errorMessage = error.localizedDescription
         }
 
         isLoading = false
+    }
+
+    func loadMoreHotVideos() async {
+        guard !isLoading else { return }
+        guard !isLoadingMoreHot else { return }
+        guard canLoadMoreHot else { return }
+
+        isLoadingMoreHot = true
+        defer { isLoadingMoreHot = false }
+
+        do {
+            let loadedHotVideos = try await fetchHotVideos(page: nextHotPage)
+            hotVideos.append(contentsOf: loadedHotVideos.filter { incoming in
+                !hotVideos.contains(where: { $0.id == incoming.id })
+            })
+            nextHotPage += 1
+            canLoadMoreHot = loadedHotVideos.count >= hotPageSize
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func fetchSearchPlaceholder() async throws -> String {
@@ -86,12 +113,12 @@ final class HomeViewModel: ObservableObject {
             .map(VideoSummary.init)
     }
 
-    private func fetchHotVideos() async throws -> [VideoSummary] {
+    private func fetchHotVideos(page: Int) async throws -> [VideoSummary] {
         let data = try await apiClient.requestEnvelopeData(
             path: BiliEndpoint.hotVideos,
             query: [
-                "pn": "1",
-                "ps": "20"
+                "pn": "\(page)",
+                "ps": "\(hotPageSize)"
             ]
         )
         return JSONValue.dictionaries(data["list"]).map(VideoSummary.init)

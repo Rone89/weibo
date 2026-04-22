@@ -14,6 +14,10 @@ final class ProfileViewModel: ObservableObject {
     private let sessionStore: SessionStore
     private var hasLoaded = false
 
+    var hasLoadedContent: Bool {
+        hasLoaded || profile != nil || stat != nil
+    }
+
     init(apiClient: BiliAPIClient, sessionStore: SessionStore) {
         self.apiClient = apiClient
         self.sessionStore = sessionStore

@@ -16,12 +16,24 @@ struct ProfileView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     if viewModel.hasSession {
-                        profileHeader
-                        quickSummary
-                        actionGrid
-                        favoriteSection
-                        loginSyncSection
-                        cookieActionSection
+                        if viewModel.hasLoadedContent {
+                            profileHeader
+                            quickSummary
+                            actionGrid
+                            favoriteSection
+                            loginSyncSection
+                            cookieActionSection
+                        } else if !viewModel.isLoading {
+                            EmptyStateView(
+                                title: L10n.profileLoadTitle,
+                                subtitle: L10n.profileLoadSubtitle,
+                                systemImage: "person.crop.circle.badge.clock",
+                                actionTitle: L10n.profileLoadAction,
+                                action: {
+                                    Task { await viewModel.reload() }
+                                }
+                            )
+                        }
                     } else {
                         loginGuide
                     }
