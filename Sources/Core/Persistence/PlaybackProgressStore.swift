@@ -99,7 +99,7 @@ final class PlaybackProgressStore: ObservableObject {
         removeRecord(forKey: storageKey)
     }
 
-    static func makeStorageKey(bvid: String, cid: Int?) -> String {
+    nonisolated static func makeStorageKey(bvid: String, cid: Int?) -> String {
         "\(bvid)#\(cid ?? 0)"
     }
 

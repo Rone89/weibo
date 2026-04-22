@@ -383,7 +383,7 @@ final class NativePlayerViewModel: ObservableObject {
         totalDurationSeconds = TimeInterval(selectedPage?.duration ?? video.duration ?? 0)
 
         if preserveTime && previousTime.seconds.isFinite && previousTime.seconds > 0 {
-            player.seek(to: previousTime)
+            await player.seek(to: previousTime)
             currentPlaybackSeconds = previousTime.seconds
         } else {
             currentPlaybackSeconds = 0
@@ -590,9 +590,9 @@ final class NativePlayerViewModel: ObservableObject {
     }
 
     private func detailText(resolution: String?, bitrate: String?, codecs: String?) -> String? {
-        let parts = [resolution, bitrate, codecs].compactMap { value in
-            guard let value, !value.isEmpty else { return nil }
-            return value
+        let parts = [resolution, bitrate, codecs].reduce(into: [String]()) { partialResult, value in
+            guard let value, !value.isEmpty else { return }
+            partialResult.append(value)
         }
         return parts.isEmpty ? nil : parts.joined(separator: " / ")
     }

@@ -71,7 +71,7 @@ final class VideoDetailViewModel: ObservableObject {
 
     func addToWatchLater() async {
         do {
-            let csrf = try apiClient.requireCSRFToken()
+            let csrf = try await apiClient.requireCSRFToken()
             var form: [String: String] = [
                 "csrf": csrf
             ]
@@ -99,7 +99,7 @@ final class VideoDetailViewModel: ObservableObject {
         }
 
         do {
-            let csrf = try apiClient.requireCSRFToken()
+            let csrf = try await apiClient.requireCSRFToken()
             _ = try await apiClient.postEnvelopeValue(
                 path: BiliEndpoint.favoriteVideoBatchDeal,
                 form: [

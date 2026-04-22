@@ -51,10 +51,6 @@ final class BiliAPIClient {
         self.session = URLSession(configuration: configuration)
     }
 
-    var csrfToken: String? {
-        sessionStore.csrfToken
-    }
-
     func requestJSON(
         baseURL: String = BiliBaseURL.api,
         path: String,
@@ -192,8 +188,9 @@ final class BiliAPIClient {
         )
     }
 
-    func requireCSRFToken() throws -> String {
-        guard let token = csrfToken, !token.isEmpty else {
+    func requireCSRFToken() async throws -> String {
+        let token = await sessionStore.csrfToken
+        guard let token, !token.isEmpty else {
             throw APIError.missingCSRF
         }
         return token

@@ -79,11 +79,11 @@ struct NativePlayerView: View {
         .onDisappear {
             viewModel.stop()
         }
-        .onChange(of: viewModel.currentPlaybackSeconds) { _, newValue in
+        .onChange(of: viewModel.currentPlaybackSeconds) { newValue in
             guard !isScrubbing else { return }
             scrubPosition = newValue
         }
-        .onChange(of: viewModel.totalDurationSeconds) { _, newValue in
+        .onChange(of: viewModel.totalDurationSeconds) { newValue in
             guard !isScrubbing else { return }
             scrubPosition = min(scrubPosition, newValue > 0 ? newValue : scrubPosition)
         }
@@ -302,7 +302,7 @@ struct NativePlayerView: View {
                 Spacer()
                 Toggle("", isOn: $viewModel.isShowingDanmakuOverlay)
                     .labelsHidden()
-                    .onChange(of: viewModel.isShowingDanmakuOverlay) { _, newValue in
+                    .onChange(of: viewModel.isShowingDanmakuOverlay) { newValue in
                         viewModel.setDanmakuOverlay(newValue)
                     }
             }

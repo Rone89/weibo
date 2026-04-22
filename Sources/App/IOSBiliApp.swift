@@ -10,7 +10,7 @@ struct IOSBiliApp: App {
             RootTabView(appEnvironment: appEnvironment)
                 .environmentObject(appEnvironment)
         }
-        .onChange(of: scenePhase) { _, newPhase in
+        .onChange(of: scenePhase) { newPhase in
             guard newPhase == .active else { return }
             Task {
                 await appEnvironment.syncLoginState()

@@ -54,7 +54,7 @@ final class FavoriteFolderDetailViewModel: ObservableObject {
         }
 
         do {
-            let csrf = try apiClient.requireCSRFToken()
+            let csrf = try await apiClient.requireCSRFToken()
             _ = try await apiClient.postEnvelopeValue(
                 path: BiliEndpoint.favoriteVideoBatchDeal,
                 form: [
@@ -76,7 +76,7 @@ final class FavoriteFolderDetailViewModel: ObservableObject {
 
     func toggleFolderSubscription() async {
         do {
-            let csrf = try apiClient.requireCSRFToken()
+            let csrf = try await apiClient.requireCSRFToken()
             _ = try await apiClient.postEnvelopeValue(
                 path: BiliEndpoint.favoriteFolderSubscribe,
                 form: [
