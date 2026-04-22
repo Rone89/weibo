@@ -30,6 +30,18 @@ jobs:
           echo "DEVELOPER_DIR=${XCODE_PATH}/Contents/Developer" >> "$GITHUB_ENV"
           "${XCODE_PATH}/Contents/Developer/usr/bin/xcodebuild" -version
 
+      - name: Ensure iOS Device Platform
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -showsdks
+
+          if ! xcodebuild -showsdks | grep -q 'iphoneos'; then
+            echo "Downloading iPhoneOS platform for Xcode 26..."
+            sudo xcodebuild -downloadPlatform iOS
+            xcodebuild -showsdks
+          fi
+
       - name: Install XcodeGen
         shell: bash
         run: |
