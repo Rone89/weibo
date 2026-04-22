@@ -57,7 +57,7 @@ jobs:
           set -euo pipefail
           xcodebuild \
             -project IOSBili.xcodeproj \
-            -scheme IOSBili \
+            -target IOSBili \
             -configuration Release \
             -sdk iphoneos \
             -derivedDataPath build/DerivedData \
