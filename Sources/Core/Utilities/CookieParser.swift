@@ -13,40 +13,29 @@ enum BiliCookieParser {
     ]
 
     static func apply(_ rawCookie: String) {
-        clearBilibiliCookies()
+        let cookies = makeCookies(from: rawCookie)
+        replaceHTTPCookies(with: cookies)
 
-        let cookiePairs = parse(rawCookie)
-        guard !cookiePairs.isEmpty else {
-            return
+        Task { @MainActor in
+            replaceWebKitCookies(with: cookies)
         }
+    }
 
-        let cookies = supportedDomains.flatMap { domain in
-            cookiePairs.compactMap { key, value in
-                makeCookie(name: key, value: value, domain: domain)
-            }
-        }
-
-        let storage = HTTPCookieStorage.shared
-        cookies.forEach { storage.setCookie($0) }
-        syncToWebKit(cookies)
+    static func primeSharedStorage(with rawCookie: String) {
+        replaceHTTPCookies(with: makeCookies(from: rawCookie))
     }
 
     static func clearBilibiliCookies() {
-        let storage = HTTPCookieStorage.shared
-        let cookies = storage.cookies?.filter { $0.domain.contains("bilibili.com") } ?? []
-        for cookie in cookies {
-            storage.deleteCookie(cookie)
-        }
+        clearBilibiliHTTPCookies()
 
-        let webStore = WKWebsiteDataStore.default().httpCookieStore
-        for cookie in cookies {
-            webStore.delete(cookie)
+        Task { @MainActor in
+            clearBilibiliWebKitCookies()
         }
     }
 
     static func exportCookieHeader() -> String {
         let cookies = (HTTPCookieStorage.shared.cookies ?? [])
-            .filter { $0.domain.contains("bilibili.com") }
+            .filter { isBilibiliDomain($0.domain) }
 
         let latestByName = Dictionary(grouping: cookies, by: \.name)
             .compactMapValues { $0.last }
@@ -60,7 +49,7 @@ enum BiliCookieParser {
     static func exportCookieHeaderFromWebKit() async -> String {
         await withCheckedContinuation { continuation in
             WKWebsiteDataStore.default().httpCookieStore.getAllCookies { cookies in
-                let latestByName = Dictionary(grouping: cookies.filter { $0.domain.contains("bilibili.com") }, by: \.name)
+                let latestByName = Dictionary(grouping: cookies.filter { isBilibiliDomain($0.domain) }, by: \.name)
                     .compactMapValues { $0.last }
 
                 let value = latestByName
@@ -70,6 +59,26 @@ enum BiliCookieParser {
                 continuation.resume(returning: value)
             }
         }
+    }
+
+    private static func makeCookies(from rawCookie: String) -> [HTTPCookie] {
+        let cookiePairs = parse(rawCookie)
+        guard !cookiePairs.isEmpty else {
+            return []
+        }
+
+        return supportedDomains.flatMap { domain in
+            cookiePairs.compactMap { key, value in
+                makeCookie(name: key, value: value, domain: domain)
+            }
+        }
+    }
+
+    private static func replaceHTTPCookies(with cookies: [HTTPCookie]) {
+        clearBilibiliHTTPCookies()
+
+        let storage = HTTPCookieStorage.shared
+        cookies.forEach { storage.setCookie($0) }
     }
 
     private static func parse(_ rawCookie: String) -> [(String, String)] {
@@ -101,10 +110,37 @@ enum BiliCookieParser {
         ])
     }
 
-    private static func syncToWebKit(_ cookies: [HTTPCookie]) {
-        let webStore = WKWebsiteDataStore.default().httpCookieStore
+    private static func clearBilibiliHTTPCookies() {
+        let storage = HTTPCookieStorage.shared
+        let cookies = storage.cookies?.filter { isBilibiliDomain($0.domain) } ?? []
         for cookie in cookies {
-            webStore.setCookie(cookie)
+            storage.deleteCookie(cookie)
         }
+    }
+
+    @MainActor
+    private static func clearBilibiliWebKitCookies() {
+        let webStore = WKWebsiteDataStore.default().httpCookieStore
+        webStore.getAllCookies { cookies in
+            cookies
+                .filter { isBilibiliDomain($0.domain) }
+                .forEach { webStore.delete($0) }
+        }
+    }
+
+    @MainActor
+    private static func replaceWebKitCookies(with cookies: [HTTPCookie]) {
+        let webStore = WKWebsiteDataStore.default().httpCookieStore
+        webStore.getAllCookies { existingCookies in
+            existingCookies
+                .filter { isBilibiliDomain($0.domain) }
+                .forEach { webStore.delete($0) }
+
+            cookies.forEach { webStore.setCookie($0) }
+        }
+    }
+
+    private static func isBilibiliDomain(_ domain: String) -> Bool {
+        domain.contains("bilibili.com")
     }
 }

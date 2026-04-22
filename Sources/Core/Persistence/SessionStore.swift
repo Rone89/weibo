@@ -15,7 +15,7 @@ final class SessionStore: ObservableObject {
         self.hasCookie = !storedCookie.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 
         if hasCookie {
-            BiliCookieParser.apply(storedCookie)
+            BiliCookieParser.primeSharedStorage(with: storedCookie)
         }
     }
 
@@ -54,6 +54,11 @@ final class SessionStore: ObservableObject {
         if !merged.isEmpty {
             BiliCookieParser.apply(merged)
         }
+    }
+
+    func restorePersistedCookieIfNeeded() {
+        guard hasCookie else { return }
+        BiliCookieParser.apply(rawCookie)
     }
 
     func clearSession() {

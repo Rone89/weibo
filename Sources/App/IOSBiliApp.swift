@@ -9,6 +9,9 @@ struct IOSBiliApp: App {
         WindowGroup {
             RootTabView(appEnvironment: appEnvironment)
                 .environmentObject(appEnvironment)
+                .task {
+                    await appEnvironment.prepareForLaunch()
+                }
         }
         .onChange(of: scenePhase) { newPhase in
             guard newPhase == .active else { return }

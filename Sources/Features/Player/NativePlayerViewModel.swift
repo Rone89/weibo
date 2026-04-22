@@ -189,7 +189,9 @@ final class NativePlayerViewModel: ObservableObject {
         }
 
         let requestedQn = preferredQuality ?? 80
-        let webURL = URL(string: "https://www.bilibili.com/video/\(video.bvid)?p=\(selectedPage?.page ?? 1)")!
+        guard let webURL = URL(string: "https://www.bilibili.com/video/\(video.bvid)?p=\(selectedPage?.page ?? 1)") else {
+            throw APIError.invalidURL
+        }
 
         let dashData = try await apiClient.requestEnvelopeData(
             path: BiliEndpoint.videoPlayURL,
@@ -453,7 +455,11 @@ final class NativePlayerViewModel: ObservableObject {
         defer { isLoadingDanmaku = false }
 
         do {
-            var request = URLRequest(url: URL(string: "https://comment.bilibili.com/\(cid).xml")!)
+            guard let danmakuURL = URL(string: "https://comment.bilibili.com/\(cid).xml") else {
+                throw APIError.invalidURL
+            }
+
+            var request = URLRequest(url: danmakuURL)
             request.setValue(BiliAPIClient.userAgent, forHTTPHeaderField: "User-Agent")
             let (data, response) = try await apiClient.session.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse,

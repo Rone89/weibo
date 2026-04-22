@@ -40,7 +40,11 @@ actor WBISigner {
             return cachedMixinKey
         }
 
-        var request = URLRequest(url: URL(string: BiliBaseURL.api + BiliEndpoint.nav)!)
+        guard let navURL = URL(string: BiliBaseURL.api + BiliEndpoint.nav) else {
+            throw APIError.invalidURL
+        }
+
+        var request = URLRequest(url: navURL)
         request.setValue(BiliAPIClient.userAgent, forHTTPHeaderField: "User-Agent")
 
         let (data, _) = try await session.data(for: request)
