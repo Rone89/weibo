@@ -43,9 +43,6 @@ struct SearchView: View {
             }
             .navigationTitle(L10n.tabSearch)
             .navigationBarTitleDisplayMode(.large)
-            .task {
-                await viewModel.loadLandingIfNeeded()
-            }
             .refreshable {
                 await viewModel.reloadLanding()
             }

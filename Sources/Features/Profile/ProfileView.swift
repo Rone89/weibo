@@ -74,9 +74,6 @@ struct ProfileView: View {
                     Task { await viewModel.saveCookie(rawCookie) }
                 }
             }
-            .task {
-                await viewModel.loadIfNeeded()
-            }
             .refreshable {
                 await viewModel.reload()
             }

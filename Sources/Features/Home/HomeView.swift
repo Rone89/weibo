@@ -76,9 +76,6 @@ struct HomeView: View {
                     }
                 }
             }
-            .task {
-                await viewModel.loadIfNeeded()
-            }
             .refreshable {
                 await viewModel.reload()
             }
