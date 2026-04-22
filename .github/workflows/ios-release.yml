@@ -60,7 +60,8 @@ jobs:
             -target IOSBili \
             -configuration Release \
             -sdk iphoneos \
-            -derivedDataPath build/DerivedData \
+            SYMROOT=build \
+            OBJROOT=build/Intermediates \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
@@ -71,7 +72,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APP_PATH="build/DerivedData/Build/Products/Release-iphoneos/IOSBili.app"
+          APP_PATH="build/Release-iphoneos/IOSBili.app"
           if [[ ! -d "${APP_PATH}" ]]; then
             echo "Built app not found at ${APP_PATH}"
             find build -maxdepth 5 -type d -name '*.app' || true
