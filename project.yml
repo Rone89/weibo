@@ -20,6 +20,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.iOSBili
         PRODUCT_NAME: IOSBili
+        SUPPORTED_PLATFORMS: "iphoneos iphonesimulator"
+        SDKROOT: iphoneos
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: iOSBili
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.entertainment
