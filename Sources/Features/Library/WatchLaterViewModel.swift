@@ -41,7 +41,7 @@ final class WatchLaterViewModel: ObservableObject {
 
     func remove(_ entry: WatchLaterEntry) async {
         guard let aid = entry.video.aid else {
-            errorMessage = "\u{7f3a}\u{5c11} aid\uff0c\u{6682}\u{65f6}\u{65e0}\u{6cd5}\u{79fb}\u{9664}\u{3002}"
+            errorMessage = "\u{7f3a}\u{5c11} aid\u{ff0c}\u{6682}\u{65f6}\u{65e0}\u{6cd5}\u{79fb}\u{9664}\u{3002}"
             return
         }
 

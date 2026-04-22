@@ -94,7 +94,7 @@ final class ProfileViewModel: ObservableObject {
         let data = try await apiClient.requestEnvelopeData(path: BiliEndpoint.nav)
         let profile = UserProfile(json: data)
         guard profile.isLogin else {
-            throw APIError.server("\u{5f53}\u{524d}\u{5bfc}\u{5165}\u{7684} Cookie \u{5df2}\u{7ecf}\u{4e0d}\u{662f}\u{767b}\u{5f55}\u{72b6}\u{6001}\u{4e86}\uff0c\u{8bf7}\u{91cd}\u{65b0}\u{4ece}\u{6d4f}\u{89c8}\u{5668}\u{590d}\u{5236}\u{6700}\u{65b0} Cookie\u{3002}")
+            throw APIError.server("\u{5f53}\u{524d}\u{5bfc}\u{5165}\u{7684} Cookie \u{5df2}\u{7ecf}\u{4e0d}\u{662f}\u{767b}\u{5f55}\u{72b6}\u{6001}\u{4e86}\u{ff0c}\u{8bf7}\u{91cd}\u{65b0}\u{4ece}\u{6d4f}\u{89c8}\u{5668}\u{590d}\u{5236}\u{6700}\u{65b0} Cookie\u{3002}")
         }
         return profile
     }

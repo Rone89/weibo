@@ -185,7 +185,7 @@ final class NativePlayerViewModel: ObservableObject {
 
     private func resolvePlayableSource(preferredQuality: Int?) async throws -> NativePlayableSource {
         guard let cid = selectedPage?.cid ?? video.cid else {
-            throw APIError.server("\u{7f3a}\u{5c11} cid\uff0c\u{65e0}\u{6cd5}\u{89e3}\u{6790}\u{64ad}\u{653e}\u{5730}\u{5740}\u{3002}")
+            throw APIError.server("\u{7f3a}\u{5c11} cid\u{ff0c}\u{65e0}\u{6cd5}\u{89e3}\u{6790}\u{64ad}\u{653e}\u{5730}\u{5740}\u{3002}")
         }
 
         let requestedQn = preferredQuality ?? 80

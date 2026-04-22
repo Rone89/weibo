@@ -49,7 +49,7 @@ final class FavoriteFolderDetailViewModel: ObservableObject {
 
     func remove(media: FavoriteMedia) async {
         guard let aid = media.video.aid else {
-            errorMessage = "\u{7f3a}\u{5c11} aid\uff0c\u{6682}\u{65f6}\u{4e0d}\u{80fd}\u{79fb}\u{51fa}\u{6536}\u{85cf}\u{5939}\u{3002}"
+            errorMessage = "\u{7f3a}\u{5c11} aid\u{ff0c}\u{6682}\u{65f6}\u{4e0d}\u{80fd}\u{79fb}\u{51fa}\u{6536}\u{85cf}\u{5939}\u{3002}"
             return
         }
 

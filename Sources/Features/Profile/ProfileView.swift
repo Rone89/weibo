@@ -224,7 +224,7 @@ struct ProfileView: View {
             if viewModel.favoriteFolders.isEmpty && !viewModel.isLoading {
                 EmptyStateView(
                     title: "\u{6682}\u{65e0}\u{53ef}\u{89c1}\u{6536}\u{85cf}\u{5939}",
-                    subtitle: "\u{5982}\u{679c}\u{8d26}\u{53f7}\u{6ca1}\u{6709}\u{516c}\u{5f00}\u{6536}\u{85cf}\u{5939}\uff0c\u{6216}\u{8005} Cookie \u{6743}\u{9650}\u{4e0d}\u{8db3}\uff0c\u{8fd9}\u{91cc}\u{4f1a}\u{663e}\u{793a}\u{4e3a}\u{7a7a}\u{3002}",
+                    subtitle: "\u{5982}\u{679c}\u{8d26}\u{53f7}\u{6ca1}\u{6709}\u{516c}\u{5f00}\u{6536}\u{85cf}\u{5939}\u{ff0c}\u{6216}\u{8005} Cookie \u{6743}\u{9650}\u{4e0d}\u{8db3}\u{ff0c}\u{8fd9}\u{91cc}\u{4f1a}\u{663e}\u{793a}\u{4e3a}\u{7a7a}\u{3002}",
                     systemImage: "star.square.on.square"
                 )
             } else {
