@@ -1,0 +1,103 @@
+name: Build iOS IPA
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 26
+        shell: bash
+        run: |
+          set -euo pipefail
+          XCODE_PATH="$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -n 1)"
+          if [[ -z "${XCODE_PATH}" ]]; then
+            echo "Xcode 26 was not found on this runner."
+            ls -1 /Applications || true
+            exit 1
+          fi
+
+          echo "DEVELOPER_DIR=${XCODE_PATH}/Contents/Developer" >> "$GITHUB_ENV"
+          "${XCODE_PATH}/Contents/Developer/usr/bin/xcodebuild" -version
+
+      - name: Install XcodeGen
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+          xcodegen version
+
+      - name: Generate Project
+        shell: bash
+        run: xcodegen generate
+
+      - name: Build Unsigned App
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project IOSBili.xcodeproj \
+            -scheme IOSBili \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package IPA
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_PATH="build/DerivedData/Build/Products/Release-iphoneos/IOSBili.app"
+          if [[ ! -d "${APP_PATH}" ]]; then
+            echo "Built app not found at ${APP_PATH}"
+            find build -maxdepth 5 -type d -name '*.app' || true
+            exit 1
+          fi
+
+          mkdir -p build/Payload
+          cp -R "${APP_PATH}" build/Payload/IOSBili.app
+          (
+            cd build
+            /usr/bin/zip -qry IOSBili-unsigned.ipa Payload
+            shasum -a 256 IOSBili-unsigned.ipa > IOSBili-unsigned.ipa.sha256
+          )
+
+          echo "ipa_path=build/IOSBili-unsigned.ipa" >> "$GITHUB_OUTPUT"
+          echo "sha_path=build/IOSBili-unsigned.ipa.sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: iosbili-unsigned-ipa
+          path: |
+            ${{ steps.package.outputs.ipa_path }}
+            ${{ steps.package.outputs.sha_path }}
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: iosbili-build-${{ github.run_number }}
+          name: IOSBili Build ${{ github.run_number }}
+          body: |
+            Automated Xcode 26 build from GitHub Actions.
+
+            This IPA is packaged without Apple signing credentials and is intended for CI output / further signing.
+          files: |
+            ${{ steps.package.outputs.ipa_path }}
+            ${{ steps.package.outputs.sha_path }}
