@@ -34,13 +34,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          sudo xcodebuild -runFirstLaunch || true
+          sudo xcodebuild -downloadPlatform iOS
           xcodebuild -showsdks
-
-          if ! xcodebuild -showsdks | grep -q 'iphoneos'; then
-            echo "Downloading iPhoneOS platform for Xcode 26..."
-            sudo xcodebuild -downloadPlatform iOS
-            xcodebuild -showsdks
-          fi
 
       - name: Install XcodeGen
         shell: bash
@@ -63,7 +59,7 @@ jobs:
             -project IOSBili.xcodeproj \
             -scheme IOSBili \
             -configuration Release \
-            -destination 'generic/platform=iOS' \
+            -sdk iphoneos \
             -derivedDataPath build/DerivedData \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
