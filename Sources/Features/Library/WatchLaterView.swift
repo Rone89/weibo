@@ -24,7 +24,11 @@ struct WatchLaterView: View {
                     EmptyStateView(
                         title: L10n.watchLaterEmptyTitle,
                         subtitle: L10n.watchLaterEmptySubtitle,
-                        systemImage: "bookmark"
+                        systemImage: "bookmark",
+                        actionTitle: L10n.watchLaterLoadAction,
+                        action: {
+                            Task { await viewModel.reload() }
+                        }
                     )
                 } else {
                     LazyVStack(spacing: 14) {
@@ -52,6 +56,8 @@ struct WatchLaterView: View {
                             }
                         }
                     }
+
+                    loadMoreSection
                 }
             }
             .padding(.horizontal, 16)
@@ -68,6 +74,22 @@ struct WatchLaterView: View {
         }
         .navigationDestination(for: VideoSummary.self) { video in
             VideoDetailView(viewModel: VideoDetailViewModel(apiClient: viewModel.apiClient, seedVideo: video))
+        }
+    }
+
+    @ViewBuilder
+    private var loadMoreSection: some View {
+        if viewModel.isLoadingMore {
+            ProgressView(L10n.loadingMore)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 12)
+        } else if viewModel.canLoadMore {
+            Button(L10n.loadMore) {
+                Task { await viewModel.loadMore() }
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Color("AccentColor"))
+            .frame(maxWidth: .infinity, alignment: .center)
         }
     }
 }

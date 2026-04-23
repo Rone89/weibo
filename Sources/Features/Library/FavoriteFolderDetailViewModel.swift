@@ -4,11 +4,15 @@ import Foundation
 final class FavoriteFolderDetailViewModel: ObservableObject {
     @Published private(set) var detail: FavoriteFolderDetail?
     @Published private(set) var isLoading = false
+    @Published private(set) var isLoadingMore = false
+    @Published private(set) var canLoadMore = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var actionMessage: String?
 
     let apiClient: BiliAPIClient
     let folder: FavoriteFolder
+    private let pageSize = 20
+    private var nextPage = 1
 
     init(apiClient: BiliAPIClient, folder: FavoriteFolder) {
         self.apiClient = apiClient
@@ -19,32 +23,48 @@ final class FavoriteFolderDetailViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         actionMessage = nil
+        nextPage = 1
 
         do {
-            let data = try await apiClient.requestEnvelopeData(
-                path: BiliEndpoint.favoriteFolderDetail,
-                query: [
-                    "media_id": "\(folder.id)",
-                    "pn": "1",
-                    "ps": "20",
-                    "keyword": "",
-                    "order": "mtime",
-                    "type": "0",
-                    "tid": "0",
-                    "platform": "web"
-                ]
-            )
-            detail = FavoriteFolderDetail(
-                info: JSONValue.dictionary(data["info"]).map(FavoriteFolder.init),
-                medias: JSONValue.dictionaries(data["medias"]).map(FavoriteMedia.init),
-                hasMore: JSONValue.bool(data["has_more"]) ?? false
-            )
+            let loadedDetail = try await fetchDetail(page: nextPage)
+            detail = loadedDetail
+            nextPage = 2
+            canLoadMore = loadedDetail.hasMore
         } catch {
             errorMessage = error.localizedDescription
             detail = nil
+            canLoadMore = false
         }
 
         isLoading = false
+    }
+
+    func loadMore() async {
+        guard !isLoading else { return }
+        guard !isLoadingMore else { return }
+        guard canLoadMore else { return }
+
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+
+        do {
+            let loadedDetail = try await fetchDetail(page: nextPage)
+            if var currentDetail = detail {
+                let existingIDs = Set(currentDetail.medias.map(\.id))
+                currentDetail = FavoriteFolderDetail(
+                    info: currentDetail.info ?? loadedDetail.info,
+                    medias: currentDetail.medias + loadedDetail.medias.filter { !existingIDs.contains($0.id) },
+                    hasMore: loadedDetail.hasMore
+                )
+                detail = currentDetail
+            } else {
+                detail = loadedDetail
+            }
+            nextPage += 1
+            canLoadMore = loadedDetail.hasMore
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     func remove(media: FavoriteMedia) async {
@@ -72,6 +92,27 @@ final class FavoriteFolderDetailViewModel: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func fetchDetail(page: Int) async throws -> FavoriteFolderDetail {
+        let data = try await apiClient.requestEnvelopeData(
+            path: BiliEndpoint.favoriteFolderDetail,
+            query: [
+                "media_id": "\(folder.id)",
+                "pn": "\(page)",
+                "ps": "\(pageSize)",
+                "keyword": "",
+                "order": "mtime",
+                "type": "0",
+                "tid": "0",
+                "platform": "web"
+            ]
+        )
+        return FavoriteFolderDetail(
+            info: JSONValue.dictionary(data["info"]).map(FavoriteFolder.init),
+            medias: JSONValue.dictionaries(data["medias"]).map(FavoriteMedia.init),
+            hasMore: JSONValue.bool(data["has_more"]) ?? false
+        )
     }
 
     func toggleFolderSubscription() async {

@@ -32,7 +32,11 @@ struct FavoriteFolderDetailView: View {
                     EmptyStateView(
                         title: L10n.favoritesEmptyTitle,
                         subtitle: L10n.favoritesEmptySubtitle,
-                        systemImage: "star"
+                        systemImage: "star",
+                        actionTitle: L10n.favoritesLoadAction,
+                        action: {
+                            Task { await viewModel.reload() }
+                        }
                     )
                 } else if let detail = viewModel.detail {
                     LazyVStack(spacing: 14) {
@@ -60,6 +64,8 @@ struct FavoriteFolderDetailView: View {
                             }
                         }
                     }
+
+                    loadMoreSection
                 }
             }
             .padding(.horizontal, 16)
@@ -99,5 +105,21 @@ struct FavoriteFolderDetailView: View {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .fill(Color(.secondarySystemBackground))
         )
+    }
+
+    @ViewBuilder
+    private var loadMoreSection: some View {
+        if viewModel.isLoadingMore {
+            ProgressView(L10n.loadingMore)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 12)
+        } else if viewModel.canLoadMore {
+            Button(L10n.loadMore) {
+                Task { await viewModel.loadMore() }
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Color("AccentColor"))
+            .frame(maxWidth: .infinity, alignment: .center)
+        }
     }
 }
