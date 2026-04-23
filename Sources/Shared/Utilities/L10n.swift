@@ -5,6 +5,8 @@ enum L10n {
 
     static let tabHome = "\u{9996}\u{9875}"
     static let tabSearch = "\u{641c}\u{7d22}"
+    static let tabDynamic = "\u{52a8}\u{6001}"
+    static let tabLibrary = "\u{7247}\u{5e93}"
     static let tabProfile = "\u{6211}\u{7684}"
 
     static let feedPicker = "\u{5185}\u{5bb9}"
@@ -80,6 +82,8 @@ enum L10n {
     static let profileLoadTitle = "\u{5c1a}\u{672a}\u{52a0}\u{8f7d}\u{8d26}\u{53f7}\u{4fe1}\u{606f}"
     static let profileLoadSubtitle = "\u{70b9}\u{51fb}\u{4e0b}\u{65b9}\u{6309}\u{94ae}\u{540e}\u{518d}\u{540c}\u{6b65}\u{4e2a}\u{4eba}\u{4e3b}\u{9875}\u{3001}\u{7edf}\u{8ba1}\u{548c}\u{6536}\u{85cf}\u{5939}\u{3002}"
     static let profileLoadAction = "\u{52a0}\u{8f7d}\u{8d26}\u{53f7}\u{4fe1}\u{606f}"
+    static let profileSessionTitle = "\u{767b}\u{5f55}\u{4f1a}\u{8bdd}"
+    static let profileSessionSubtitle = "\u{67e5}\u{770b} Cookie \u{5173}\u{952e}\u{5b57}\u{6bb5}\u{548c}\u{5f53}\u{524d}\u{540c}\u{6b65}\u{72b6}\u{6001}"
     static let notLoggedIn = "\u{672a}\u{767b}\u{5f55}"
     static let vip = "\u{5927}\u{4f1a}\u{5458}"
     static let following = "\u{5173}\u{6ce8}"
@@ -155,7 +159,23 @@ enum L10n {
     static let profileSyncStatus = "\u{767b}\u{5f55}\u{72b6}\u{6001}\u{5df2}\u{4e0e} Cookie \u{540c}\u{6b65}"
     static let homeHeroBadge = "\u{539f}\u{751f}\u{91cd}\u{5199}\u{4e2d}"
     static let homeHeroSubtitle = "\u{5c06}\u{63a8}\u{8350}\u{6d41}\u{3001}\u{767b}\u{5f55}\u{8fc1}\u{79fb}\u{548c}\u{64ad}\u{653e}\u{80fd}\u{529b}\u{5408}\u{5230}\u{4e00}\u{4e2a} SwiftUI \u{7248}\u{672c}"
+    static let homeNativeSubtitle = "\u{7528} SwiftUI \u{539f}\u{751f}\u{91cd}\u{7ec4}\u{63a8}\u{8350}\u{3001}\u{641c}\u{7d22}\u{4e0e}\u{4e2a}\u{4eba}\u{7a7a}\u{95f4}\u{3002}"
+    static let homeFeaturedTitle = "\u{4eca}\u{65e5}\u{7cbe}\u{9009}"
+    static let homeFeaturedSubtitle = "\u{628a}\u{5f53}\u{524d}\u{9891}\u{9053}\u{91cc}\u{6700}\u{503c}\u{5f97}\u{7acb}\u{5373}\u{70b9}\u{5f00}\u{7684}\u{5185}\u{5bb9}\u{653e}\u{5230}\u{6700}\u{524d}\u{9762}"
+    static let homeQuickActionsSubtitle = "\u{641c}\u{7d22}\u{3001}\u{70ed}\u{95e8}\u{3001}\u{7247}\u{5e93}\u{548c}\u{4e2a}\u{4eba}\u{5165}\u{53e3}\u{90fd}\u{653e}\u{5728}\u{9996}\u{9875}"
+    static let homeSearchActionSubtitle = "\u{76f4}\u{63a5}\u{6253}\u{5f00}\u{8054}\u{60f3}\u{3001}\u{70ed}\u{8bcd}\u{548c}\u{641c}\u{7d22}\u{5386}\u{53f2}"
+    static let homeHotActionSubtitle = "\u{7acb}\u{523b}\u{5207}\u{5230}\u{70ed}\u{95e8}\u{6d41}\u{3001}\u{770b}\u{770b}\u{4eca}\u{5929}\u{5927}\u{5bb6}\u{90fd}\u{5728}\u{70b9}\u{4ec0}\u{4e48}"
+    static let homeDynamicActionSubtitle = "\u{6253}\u{5f00}\u{767b}\u{5f55}\u{540e}\u{7684}\u{52a8}\u{6001}\u{6d41}\u{ff0c}\u{770b}\u{5173}\u{6ce8} UP \u{4e3b}\u{6700}\u{65b0}\u{5185}\u{5bb9}"
+    static let homeLibraryActionSubtitle = "\u{628a}\u{6536}\u{85cf}\u{5939}\u{3001}\u{5386}\u{53f2}\u{548c}\u{7a0d}\u{540e}\u{518d}\u{770b}\u{96c6}\u{4e2d}\u{8fdb}\u{5165}"
+    static let homeProfileActionSubtitle = "\u{7ee7}\u{7eed}\u{540c}\u{6b65} Cookie\u{3001}\u{8d26}\u{53f7}\u{72b6}\u{6001}\u{4e0e}\u{6536}\u{85cf}\u{4fe1}\u{606f}"
+    static let homeHighlightsTitle = "\u{5feb}\u{901f}\u{9884}\u{89c8}"
+    static let searchDiscoveryTitle = "\u{53d1}\u{73b0}\u{63a2}\u{7d22}"
+    static let searchDiscoverySubtitle2 = "\u{628a}\u{70ed}\u{95e8}\u{8bcd}\u{548c}\u{63a8}\u{8350}\u{8bcd}\u{505a}\u{6210}\u{66f4}\u{76f4}\u{89c2}\u{7684}\u{9996}\u{5c4f}\u{5165}\u{53e3}"
     static let searchHeroSubtitle = "\u{70ed}\u{8bcd}\u{3001}\u{8054}\u{60f3}\u{8bcd}\u{3001}\u{5386}\u{53f2}\u{8bb0}\u{5f55}\u{90fd}\u{5df2}\u{7ecf}\u{63a5}\u{5165}\u{539f}\u{751f}\u{641c}\u{7d22}\u{6d41}\u{7a0b}"
+    static let searchDiscoverySubtitle = "\u{628a}\u{70ed}\u{8bcd}\u{3001}\u{8054}\u{60f3}\u{8bcd}\u{548c}\u{641c}\u{7d22}\u{5386}\u{53f2}\u{91cd}\u{7ec4}\u{6210}\u{66f4}\u{50cf} iOS \u{539f}\u{751f}\u{641c}\u{7d22}\u{9762}\u{677f}\u{7684}\u{4f53}\u{9a8c}"
+    static let searchSpotlightTitle = "\u{70ed}\u{95e8}\u{805a}\u{7126}"
+    static let searchBestMatchTitle = "\u{6700}\u{4f73}\u{5339}\u{914d}"
+    static let searchBestMatchSubtitle = "\u{628a}\u{6700}\u{503c}\u{5f97}\u{5148}\u{70b9}\u{7684}\u{89c6}\u{9891}\u{653e}\u{5728}\u{6700}\u{4e0a}\u{9762}"
     static let relatedSubtitle = "\u{7ee7}\u{7eed}\u{987a}\u{7740}\u{76f8}\u{5173}\u{89c6}\u{9891}\u{5f80}\u{4e0b}\u{770b}"
     static let pageSubtitle = "\u{9009}\u{62e9}\u{4e0d}\u{540c} P \u{6570}\u{8fdb}\u{884c}\u{64ad}\u{653e}"
     static let playbackPanelTitle = "\u{64ad}\u{653e}\u{65b9}\u{5f0f}"
@@ -166,8 +186,82 @@ enum L10n {
     static let detailAuthorSubtitle = "UP \u{4e3b}\u{4e0e}\u{6295}\u{7a3f}\u{4fe1}\u{606f}"
     static let favoritesSubtitle = "\u{540c}\u{6b65}\u{4f60}\u{7684}\u{516c}\u{5f00}\u{6536}\u{85cf}\u{5939}\u{548c}\u{5185}\u{5bb9}\u{6570}"
     static let commonActionsSubtitle = "\u{5386}\u{53f2}\u{3001}\u{7a0d}\u{540e}\u{518d}\u{770b}\u{548c}\u{767b}\u{5f55}\u{5165}\u{53e3}\u{5df2}\u{7ecf}\u{6574}\u{5408}"
+    static let profileHeroSubtitle = "\u{8d26}\u{53f7}\u{4fe1}\u{606f}\u{3001}\u{6536}\u{85cf}\u{540c}\u{6b65}\u{4e0e}\u{767b}\u{5f55}\u{8fc1}\u{79fb}\u{90fd}\u{5728}\u{8fd9}\u{4e2a}\u{539f}\u{751f}\u{4e2a}\u{4eba}\u{9875}"
+    static let profileHistorySubtitle = "\u{67e5}\u{770b}\u{8fd1}\u{671f}\u{89c2}\u{770b}\u{8f68}\u{8ff9}\u{4e0e}\u{539f}\u{751f}\u{8fdb}\u{5ea6}"
+    static let profileWatchLaterSubtitle = "\u{628a}\u{7a0d}\u{540e}\u{518d}\u{770b}\u{5217}\u{8868}\u{5728}\u{4e00}\u{4e2a}\u{5165}\u{53e3}\u{5185}\u{5feb}\u{901f}\u{6253}\u{5f00}"
+    static let profileWebLoginSubtitle = "\u{5728}\u{5185}\u{5d4c} Web \u{91cc}\u{5b8c}\u{6210}\u{767b}\u{5f55}\u{540e}\u{76f4}\u{63a5}\u{5bfc}\u{5165} Cookie"
+    static let profileCookieSubtitle = "\u{624b}\u{52a8}\u{7c98}\u{8d34}\u{6d4f}\u{89c8}\u{5668} Cookie Header \u{540c}\u{6b65}\u{767b}\u{5f55}\u{72b6}\u{6001}"
     static let loginGuideSubtitle = "\u{5bfc}\u{5165} Cookie \u{540e}\u{5373}\u{53ef}\u{8fc1}\u{79fb}\u{5386}\u{53f2}\u{3001}\u{7a0d}\u{540e}\u{518d}\u{770b}\u{548c}\u{6536}\u{85cf}"
     static let nativeReady = "\u{53ef}\u{5207}\u{6362}\u{753b}\u{8d28}\u{4e0e}\u{67e5}\u{770b}\u{57fa}\u{7840}\u{5f39}\u{5e55}"
+    static let libraryHeroSubtitle = "\u{628a}\u{5386}\u{53f2}\u{3001}\u{7a0d}\u{540e}\u{518d}\u{770b}\u{4e0e}\u{6536}\u{85cf}\u{5939}\u{5347}\u{7ea7}\u{6210}\u{4e00}\u{4e2a}\u{72ec}\u{7acb}\u{7684}\u{539f}\u{751f}\u{7247}\u{5e93}\u{5165}\u{53e3}"
+    static let libraryActionsSubtitle = "\u{5df2}\u{8fc1}\u{79fb}\u{7684}\u{4e09}\u{7c7b}\u{5185}\u{5bb9}\u{5728}\u{8fd9}\u{91cc}\u{96c6}\u{4e2d}\u{8fdb}\u{5165}"
+    static let libraryHistorySubtitle = "\u{7eed}\u{63a5}\u{4f60}\u{7684}\u{89c2}\u{770b}\u{5386}\u{53f2}\u{548c}\u{5df2}\u{770b}\u{8fdb}\u{5ea6}"
+    static let libraryWatchLaterSubtitle = "\u{5c06}\u{7a0d}\u{540e}\u{518d}\u{770b}\u{5217}\u{8868}\u{4f5c}\u{4e3a}\u{72ec}\u{7acb}\u{6a21}\u{5757}\u{5feb}\u{901f}\u{6253}\u{5f00}"
+    static let librarySearchSubtitle = "\u{7ee7}\u{7eed}\u{53bb}\u{641c}\u{89c6}\u{9891}\u{3001}UP \u{4e3b}\u{548c}\u{5173}\u{952e}\u{8bcd}"
+    static let libraryProfileSubtitle = "\u{524d}\u{5f80}\u{6211}\u{7684}\u{9875}\u{7ba1}\u{7406} Cookie \u{548c}\u{767b}\u{5f55}\u{540c}\u{6b65}"
+    static let libraryFavoritesEmptySubtitle = "\u{767b}\u{5f55}\u{5e76}\u{540c}\u{6b65}\u{6210}\u{529f}\u{540e}\u{ff0c}\u{8fd9}\u{91cc}\u{4f1a}\u{51fa}\u{73b0}\u{4f60}\u{7684}\u{6536}\u{85cf}\u{5939}\u{9884}\u{89c8}"
+    static let libraryMigrationSubtitle = "\u{539f}\u{751f}\u{7248}\u{672c}\u{76ee}\u{524d}\u{5df2}\u{652f}\u{6301}\u{767b}\u{5f55}\u{3001}\u{5386}\u{53f2}\u{3001}\u{7a0d}\u{540e}\u{518d}\u{770b}\u{548c}\u{6536}\u{85cf}\u{8fc1}\u{79fb}"
+    static let libraryLoginTitle = "\u{767b}\u{5f55}\u{540e}\u{540c}\u{6b65}\u{7247}\u{5e93}"
+    static let libraryLoginSubtitle = "\u{5f53}\u{524d}\u{7247}\u{5e93}\u{9700}\u{8981} Cookie \u{6216} Web \u{767b}\u{5f55}\u{540e}\u{624d}\u{80fd}\u{62ff}\u{5230}\u{4f60}\u{7684}\u{5386}\u{53f2}\u{3001}\u{7a0d}\u{540e}\u{518d}\u{770b}\u{548c}\u{6536}\u{85cf}\u{5939}"
+    static let libraryLoginAction = "\u{53bb}\u{767b}\u{5f55}"
+    static let libraryOverviewTitle = "\u{7247}\u{5e93}\u{6982}\u{89c8}"
+    static let libraryOverviewSubtitle = "\u{5728}\u{540c}\u{4e00}\u{5c42}\u{770b}\u{5230}\u{767b}\u{5f55}\u{72b6}\u{6001}\u{3001}\u{6536}\u{85cf}\u{5939}\u{548c}\u{539f}\u{751f}\u{8fc1}\u{79fb}\u{8fdb}\u{5ea6}"
+    static let librarySessionCardTitle = "\u{5f53}\u{524d}\u{8d26}\u{53f7}"
+    static let librarySpotlightTitle = "\u{4f18}\u{5148}\u{9605}\u{8bfb}"
+    static let libraryLoggedInBadge = "\u{5df2}\u{767b}\u{5f55}"
+    static let libraryNativeBadge = "\u{539f}\u{751f}"
+    static let libraryReadyBadge = "\u{5c31}\u{7eea}"
+    static let dynamicHeroSubtitle = "\u{767b}\u{5f55}\u{540e}\u{53ef}\u{4ee5}\u{76f4}\u{63a5}\u{67e5}\u{770b}\u{5173}\u{6ce8}\u{3001}\u{89c6}\u{9891}\u{5206}\u{6d41}\u{548c}\u{8f6c}\u{53d1}\u{52a8}\u{6001}\u{3002}"
+    static let dynamicFeedAll = "\u{63a8}\u{8350}\u{52a8}\u{6001}"
+    static let dynamicFeedVideo = "\u{89c6}\u{9891}\u{52a8}\u{6001}"
+    static let dynamicSessionHint = "\u{9700}\u{8981}\u{767b}\u{5f55}"
+    static let dynamicLoginTitle = "\u{767b}\u{5f55}\u{540e}\u{89e3}\u{9501}\u{52a8}\u{6001}"
+    static let dynamicLoginSubtitle = "\u{5f53}\u{524d}\u{52a8}\u{6001}\u{6d41}\u{4f9d}\u{8d56}\u{767b}\u{5f55} Cookie \u{624d}\u{80fd}\u{62ff}\u{5230}\u{4f60}\u{7684}\u{5173}\u{6ce8}\u{5185}\u{5bb9}"
+    static let dynamicLoginBody = "\u{8fdb}\u{5165}\u{201c}\u{6211}\u{7684}\u{201d}\u{5b8c}\u{6210} Web \u{767b}\u{5f55}\u{6216} Cookie \u{5bfc}\u{5165}\u{540e}\u{ff0c}\u{8fd9}\u{91cc}\u{4f1a}\u{81ea}\u{52a8}\u{663e}\u{793a}\u{52a8}\u{6001}\u{6d41}\u{3002}"
+    static let dynamicLoginAction = "\u{53bb}\u{6211}\u{7684}"
+    static let dynamicLoading = "\u{6b63}\u{5728}\u{52a0}\u{8f7d}\u{52a8}\u{6001}\u{6d41}..."
+    static let dynamicEmptyTitle = "\u{8fd8}\u{6ca1}\u{6709}\u{52a8}\u{6001}"
+    static let dynamicEmptySubtitle = "\u{53ef}\u{4ee5}\u{4e0b}\u{62c9}\u{5237}\u{65b0}\u{ff0c}\u{6216}\u{7a0d}\u{540e}\u{518d}\u{8bd5}\u{4e00}\u{6b21}\u{3002}"
+    static let dynamicReloadAction = "\u{91cd}\u{65b0}\u{52a0}\u{8f7d}\u{52a8}\u{6001}"
+    static let dynamicDetailTitle = "\u{52a8}\u{6001}\u{8be6}\u{60c5}"
+    static let dynamicDetailSubtitle = "\u{67e5}\u{770b}\u{5b8c}\u{6574}\u{5185}\u{5bb9}\u{3001}\u{8f6c}\u{53d1}\u{4e0e}\u{5bf9}\u{5e94}\u{8bc4}\u{8bba}\u{3002}"
+    static let dynamicDetailLoading = "\u{6b63}\u{5728}\u{52a0}\u{8f7d}\u{52a8}\u{6001}\u{8be6}\u{60c5}..."
+    static let dynamicReadingTitle = "\u{6b63}\u{6587}"
+    static let dynamicReadingEmpty = "\u{8fd9}\u{6761}\u{52a8}\u{6001}\u{66f4}\u{50cf}\u{4e00}\u{4e2a}\u{9644}\u{4ef6}\u{5361}\u{7247}\u{ff0c}\u{6ca1}\u{6709}\u{53ef}\u{5c55}\u{5f00}\u{7684}\u{957f}\u{6587}\u{3002}"
+    static let dynamicExpandText = "\u{5c55}\u{5f00}\u{5168}\u{6587}"
+    static let dynamicCollapseText = "\u{6536}\u{8d77}\u{5168}\u{6587}"
+    static let dynamicMediaTitle = "\u{56fe}\u{96c6}"
+    static let dynamicAttachedVideoTitle = "\u{9644}\u{5e26}\u{89c6}\u{9891}"
+    static let dynamicAttachedVideoSubtitle = "\u{4fdd}\u{7559}\u{5728}\u{52a8}\u{6001}\u{91cc}\u{7684}\u{53ef}\u{70b9}\u{5f00}\u{5185}\u{5bb9}"
+    static let dynamicQuotedTitle = "\u{539f}\u{52a8}\u{6001}"
+    static let playerOverviewTitle = "\u{64ad}\u{653e}\u{6982}\u{89c8}"
+    static let playerOverviewSubtitle = "\u{7528}\u{66f4}\u{8f7b}\u{677e}\u{7684}\u{65b9}\u{5f0f}\u{770b}\u{6e05}\u{5f53}\u{524d}\u{5185}\u{5bb9}\u{548c}\u{5feb}\u{901f}\u{5b9a}\u{4f4d}"
+    static let playerRestart = "\u{56de}\u{5230}\u{5f00}\u{5934}"
+    static let playerQuarter = "25%"
+    static let playerHalf = "50%"
+    static let playerThreeQuarter = "75%"
+    static let playerAlmostDone = "\u{5feb}\u{5230}\u{7ed3}\u{5c3e}"
+    static let videoCommentsTitle = "\u{8bc4}\u{8bba}"
+    static let videoCommentsSubtitle = "\u{89c2}\u{770b}\u{70ed}\u{95e8}\u{8bc4}\u{8bba}\u{548c}\u{6700}\u{65b0}\u{56de}\u{590d}"
+    static let videoCommentsSortHot = "\u{70ed}\u{95e8}"
+    static let videoCommentsSortNew = "\u{6700}\u{65b0}"
+    static let videoCommentsPreparing = "\u{6b63}\u{5728}\u{51c6}\u{5907}\u{8bc4}\u{8bba}\u{53c2}\u{6570}..."
+    static let videoCommentsLoading = "\u{6b63}\u{5728}\u{52a0}\u{8f7d}\u{8bc4}\u{8bba}..."
+    static let videoCommentsEmptyTitle = "\u{8fd8}\u{6ca1}\u{6709}\u{8bc4}\u{8bba}"
+    static let videoCommentsEmptySubtitle = "\u{5f53}\u{524d}\u{89c6}\u{9891}\u{8fd8}\u{6ca1}\u{6709}\u{53ef}\u{89c1}\u{8bc4}\u{8bba}\u{6216}\u{8bc4}\u{8bba}\u{672a}\u{80fd}\u{6210}\u{529f}\u{52a0}\u{8f7d}\u{3002}"
+    static let videoCommentsReloadAction = "\u{91cd}\u{65b0}\u{52a0}\u{8f7d}\u{8bc4}\u{8bba}"
+    static let videoCommentsPinnedTitle = "\u{7f6e}\u{9876}\u{4e0e}\u{70ed}\u{95e8}"
+    static let videoCommentsPinnedTag = "\u{7cbe}\u{9009}"
+    static let videoCommentsReplyAction = "\u{56de}\u{590d}"
+    static let videoCommentsSendAction = "\u{53d1}\u{9001}"
+    static let videoCommentsComposerTitle = "\u{53d1}\u{8868}\u{8bc4}\u{8bba}"
+    static let videoCommentsReplyPlaceholder = "\u{8bf4}\u{70b9}\u{4ec0}\u{4e48}\u{5427}..."
+    static let videoCommentsPosted = "\u{8bc4}\u{8bba}\u{5df2}\u{53d1}\u{9001}\u{3002}"
+    static let videoCommentsReplyPosted = "\u{56de}\u{590d}\u{5df2}\u{53d1}\u{9001}\u{3002}"
+    static let videoCommentsThreadTitle = "\u{56de}\u{590d}\u{8be6}\u{60c5}"
+    static let videoCommentsThreadEmptyTitle = "\u{8fd8}\u{6ca1}\u{6709}\u{56de}\u{590d}"
+    static let videoCommentsThreadEmptySubtitle = "\u{8fd9}\u{6761}\u{8bc4}\u{8bba}\u{6682}\u{65f6}\u{8fd8}\u{6ca1}\u{6709}\u{516c}\u{5f00}\u{56de}\u{590d}\u{3002}"
+    static let profileFavoritesSpotlightTitle = "\u{6536}\u{85cf}\u{7126}\u{70b9}"
     static let sourceCount = "\u{4e2a}\u{7247}\u{6e90}"
     static let resultsCount = "\u{6761}\u{7ed3}\u{679c}"
     static let historyCount = "\u{6761}\u{641c}\u{7d22}\u{8bb0}\u{5f55}"
@@ -289,6 +383,18 @@ enum L10n {
         "\(count) \u{6761}\u{5185}\u{5bb9}"
     }
 
+    static func dynamicCountSubtitle(_ count: Int) -> String {
+        "\(count) \u{6761}\u{52a8}\u{6001}"
+    }
+
+    static func dynamicMediaSubtitle(_ count: Int) -> String {
+        "\(count) \u{5f20}\u{56fe}\u{7247}"
+    }
+
+    static func dynamicQuotedSubtitle(_ authorName: String) -> String {
+        "\u{6765}\u{81ea} \(authorName)"
+    }
+
     static func favoriteFoldersSubtitle(_ count: Int) -> String {
         "\(count) \u{4e2a}\u{6536}\u{85cf}\u{5939}"
     }
@@ -304,6 +410,40 @@ enum L10n {
     static func qrLoginCountdown(_ seconds: Int) -> String {
         "\(qrLoginCountdownPrefix) \(max(0, seconds)) \u{79d2}"
     }
+
+    static func videoCommentsCount(_ count: Int) -> String {
+        "\(count) \u{6761}\u{8bc4}\u{8bba}"
+    }
+
+    static func videoCommentsPinnedSubtitle(_ count: Int) -> String {
+        "\(count) \u{6761}\u{4f18}\u{5148}\u{663e}\u{793a}"
+    }
+
+    static func videoCommentsReplyTo(_ name: String) -> String {
+        "\u{56de}\u{590d} @\(name)"
+    }
+
+    static func playerOverviewPageSubtitle(_ part: String) -> String {
+        "\u{5f53}\u{524d}\u{5185}\u{5bb9} · \(part)"
+    }
+
+    static func videoCommentsOpenThread(_ count: Int) -> String {
+        "\u{67e5}\u{770b}\u{56de}\u{590d}\u{ff08}\(count)\u{6761}\u{ff09}"
+    }
+
+    static func videoCommentsReplyComposerTitle(_ name: String) -> String {
+        "\u{56de}\u{590d} \(name)"
+    }
+
+    static func videoCommentsDraftCount(_ count: Int) -> String {
+        "\(count) \u{5b57}"
+    }
+
+    static func profileCookieField(_ name: String, isPresent: Bool) -> String {
+        "\(name) \(isPresent ? "\u{5df2}\u{5c31}\u{7eea}" : "\u{7f3a}\u{5931}")"
+    }
+
+    static let profileCookieEmptyPreview = "\u{5f53}\u{524d}\u{8fd8}\u{6ca1}\u{6709} Cookie \u{539f}\u{6587}\u{53ef}\u{9884}\u{89c8}"
 
     static var qrLoginBackgroundCapability: String {
         "\u{5f53} App \u{5207}\u{5230}\u{540e}\u{53f0}\u{65f6}\u{ff0c}\u{767b}\u{5f55}\u{8f6e}\u{8be2}\u{4f1a}\u{5728} iOS \u{5141}\u{8bb8}\u{7684}\u{540e}\u{53f0}\u{65f6}\u{95f4}\u{5185}\u{7ee7}\u{7eed}\u{8fd0}\u{884c}\u{ff1b}\u{5982}\u{679c}\u{7cfb}\u{7edf}\u{63d0}\u{524d}\u{6682}\u{505c}\u{540e}\u{53f0}\u{4efb}\u{52a1}\u{ff0c}\u{56de}\u{5230}\u{524d}\u{53f0}\u{540e}\u{4f1a}\u{81ea}\u{52a8}\u{7eed}\u{8dd1}\u{3002}"

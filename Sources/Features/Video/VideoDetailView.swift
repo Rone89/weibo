@@ -26,6 +26,7 @@ struct VideoDetailView: View {
 
                 creatorCard
                 actionPanel
+                commentsSection
 
                 if let detail = viewModel.detail, !detail.pages.isEmpty {
                     section(title: L10n.videoPages, subtitle: L10n.pageSubtitle) {
@@ -139,6 +140,10 @@ struct VideoDetailView: View {
 
     private var currentPlayableVideo: VideoSummary {
         viewModel.currentPlayableVideo(page: selectedPage)
+    }
+
+    private var currentCommentOID: Int? {
+        viewModel.detail?.aid ?? viewModel.seedVideo.aid
     }
 
     private var playerReloadKey: String {
@@ -312,6 +317,15 @@ struct VideoDetailView: View {
                 .biliPrimaryActionButton()
             }
         }
+        .padding(18)
+        .biliCardStyle()
+    }
+
+    private var commentsSection: some View {
+        VideoCommentsSection(
+            apiClient: viewModel.apiClient,
+            oid: currentCommentOID
+        )
         .padding(18)
         .biliCardStyle()
     }

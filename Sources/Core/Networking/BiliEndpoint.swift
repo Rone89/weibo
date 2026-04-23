@@ -21,6 +21,9 @@ enum BiliEndpoint {
     static let searchTrending = "/main/hotword"
     static let searchRecommend = "/x/v2/search/recommend"
 
+    static let dynamicFeed = "/x/polymer/web-dynamic/v1/feed/all"
+    static let dynamicDetail = "/x/polymer/web-dynamic/v1/detail"
+
     static let qrCodeAuthCode = "/x/passport-tv-login/qrcode/auth_code"
     static let qrCodePoll = "/x/passport-tv-login/qrcode/poll"
 
@@ -41,6 +44,9 @@ enum BiliEndpoint {
 
     static let videoDetail = "/x/web-interface/view"
     static let relatedVideos = "/x/web-interface/archive/related"
+    static let replyMain = "/x/v2/reply/main"
+    static let replyReplyList = "/x/v2/reply/reply"
+    static let replyAdd = "/x/v2/reply/add"
     static let videoPlayURL = "/x/player/wbi/playurl"
     static let playInfo = "/x/player/wbi/v2"
 

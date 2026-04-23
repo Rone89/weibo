@@ -4,6 +4,8 @@ struct RootTabView: View {
     enum RootTab: Hashable {
         case home
         case search
+        case dynamic
+        case library
         case profile
     }
 
@@ -12,9 +14,13 @@ struct RootTabView: View {
 
     var body: some View {
         TabView(selection: $selection) {
-            HomeView(apiClient: appEnvironment.apiClient) {
-                selection = .search
-            }
+            HomeView(
+                apiClient: appEnvironment.apiClient,
+                onTapSearch: { selection = .search },
+                onTapDynamic: { selection = .dynamic },
+                onTapLibrary: { selection = .library },
+                onTapProfile: { selection = .profile }
+            )
             .tabItem {
                 Label(L10n.tabHome, systemImage: "house.fill")
             }
@@ -26,12 +32,33 @@ struct RootTabView: View {
                 }
                 .tag(RootTab.search)
 
+            DynamicView(
+                apiClient: appEnvironment.apiClient,
+                sessionStore: appEnvironment.sessionStore,
+                onTapProfile: { selection = .profile }
+            )
+            .tabItem {
+                Label(L10n.tabDynamic, systemImage: "bubble.left.and.bubble.right.fill")
+            }
+            .tag(RootTab.dynamic)
+
+            LibraryHubView(
+                apiClient: appEnvironment.apiClient,
+                sessionStore: appEnvironment.sessionStore,
+                onTapSearch: { selection = .search },
+                onTapProfile: { selection = .profile }
+            )
+            .tabItem {
+                Label(L10n.tabLibrary, systemImage: "play.square.stack.fill")
+            }
+            .tag(RootTab.library)
+
             ProfileView(
                 apiClient: appEnvironment.apiClient,
                 sessionStore: appEnvironment.sessionStore
             )
             .tabItem {
-                Label(L10n.tabProfile, systemImage: "person.crop.circle")
+                Label(L10n.tabProfile, systemImage: "person.crop.circle.fill")
             }
             .tag(RootTab.profile)
         }

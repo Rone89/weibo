@@ -43,9 +43,6 @@ struct EmptyStateView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 36)
         .padding(.horizontal, 20)
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
+        .biliCardStyle(tint: Color("AccentColor").opacity(0.18))
     }
 }

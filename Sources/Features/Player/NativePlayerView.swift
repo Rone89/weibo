@@ -113,6 +113,7 @@ struct NativePlayerView: View {
     private var playerControlCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             playerHeader
+            playbackOverviewSection
             transportSection
 
             if !viewModel.qualityOptions.isEmpty {
@@ -175,6 +176,63 @@ struct NativePlayerView: View {
                         text: source.mode == .composite ? L10n.qualityStreamDash : L10n.qualityStreamDirect,
                         systemImage: source.mode == .composite ? "waveform.path.ecg.rectangle" : "link"
                     )
+                }
+            }
+        }
+    }
+
+    private var playbackOverviewSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            BiliSectionHeader(
+                title: L10n.playerOverviewTitle,
+                subtitle: playbackOverviewSubtitle
+            )
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    BiliMetricPill(text: viewModel.video.authorName, systemImage: "person.fill")
+
+                    if let selectedPage = viewModel.selectedPage {
+                        BiliMetricPill(
+                            text: L10n.pageTitle(page: selectedPage.page, part: selectedPage.part),
+                            systemImage: "list.number"
+                        )
+                    }
+
+                    BiliMetricPill(
+                        text: BiliFormatting.duration(Int(playbackEffectiveDuration.rounded())),
+                        systemImage: "clock.fill"
+                    )
+
+                    if let initialSeekSeconds = viewModel.initialSeekSeconds, initialSeekSeconds > 5 {
+                        BiliMetricPill(
+                            text: L10n.watchedPrefix(BiliFormatting.duration(Int(initialSeekSeconds.rounded()))),
+                            systemImage: "arrow.clockwise"
+                        )
+                    }
+                }
+            }
+
+            if !timelineShortcuts.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(Array(timelineShortcuts.enumerated()), id: \.offset) { _, shortcut in
+                            Button(shortcut.title) {
+                                viewModel.seek(to: shortcut.seconds)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(
+                                Capsule()
+                                    .fill(Color("AccentColor").opacity(0.12))
+                            )
+                            .overlay(
+                                Capsule()
+                                    .stroke(.white.opacity(0.74), lineWidth: 1)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -418,6 +476,31 @@ struct NativePlayerView: View {
 
     private var sliderUpperBound: Double {
         max(viewModel.totalDurationSeconds, max(viewModel.currentPlaybackSeconds, 1))
+    }
+
+    private var playbackOverviewSubtitle: String {
+        if let selectedPage = viewModel.selectedPage {
+            return L10n.playerOverviewPageSubtitle(selectedPage.part)
+        }
+        return L10n.playerOverviewSubtitle
+    }
+
+    private var playbackEffectiveDuration: TimeInterval {
+        let fallback = TimeInterval(viewModel.selectedPage?.duration ?? viewModel.video.duration ?? 0)
+        return max(viewModel.totalDurationSeconds, fallback)
+    }
+
+    private var timelineShortcuts: [(title: String, seconds: TimeInterval)] {
+        guard playbackEffectiveDuration > 0 else { return [] }
+
+        let duration = playbackEffectiveDuration
+        return [
+            (L10n.playerRestart, 0),
+            (L10n.playerQuarter, duration * 0.25),
+            (L10n.playerHalf, duration * 0.5),
+            (L10n.playerThreeQuarter, duration * 0.75),
+            (L10n.playerAlmostDone, max(duration - 15, duration * 0.9))
+        ]
     }
 }
 
