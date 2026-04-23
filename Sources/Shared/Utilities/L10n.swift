@@ -424,7 +424,7 @@ enum L10n {
     }
 
     static func searchResultWithResumeSubtitle(total: Int, resumed: Int) -> String {
-        "\(total) \u{6761}\u{7ed3}\u{679c}\uff0c\(resumed) \u{6761}\u{53ef}\u{76f4}\u{63a5}\u{7eed}\u{64ad}"
+        "\(total) \u{6761}\u{7ed3}\u{679c}\u{ff0c}\(resumed) \u{6761}\u{53ef}\u{76f4}\u{63a5}\u{7eed}\u{64ad}"
     }
 
     static func historySubtitle(_ count: Int) -> String {
