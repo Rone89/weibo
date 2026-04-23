@@ -388,9 +388,15 @@ private struct FavoritePickerSheet: View {
                         Spacer()
                     }
                 } else if folders.isEmpty {
-                    Text(L10n.favoritePickerEmpty)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(L10n.favoritePickerEmpty)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+
+                        Button(L10n.favoritePickerLoadAction, action: onLoad)
+                            .buttonStyle(.borderedProminent)
+                    }
+                    .padding(.vertical, 8)
                 } else {
                     ForEach(folders) { folder in
                         Button {

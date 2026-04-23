@@ -22,6 +22,7 @@ enum BiliEndpoint {
     static let searchRecommend = "/x/v2/search/recommend"
 
     static let userFavoriteFolders = "/x/v3/fav/folder/created/list"
+    static let userFavoriteFoldersAll = "/x/v3/fav/folder/created/list-all"
     static let favoriteFolderDetail = "/x/v3/fav/resource/list"
     static let favoriteVideoBatchDeal = "/x/v3/fav/resource/batch-deal"
     static let favoriteFolderSubscribe = "/x/v3/fav/folder/fav"

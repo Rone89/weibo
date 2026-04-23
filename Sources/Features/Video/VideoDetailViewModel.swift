@@ -55,15 +55,7 @@ final class VideoDetailViewModel: ObservableObject {
         do {
             let nav = try await apiClient.requestEnvelopeData(path: BiliEndpoint.nav)
             let mid = JSONValue.int(nav["mid"]) ?? 0
-            let data = try await apiClient.requestEnvelopeData(
-                path: BiliEndpoint.userFavoriteFolders,
-                query: [
-                    "up_mid": "\(mid)",
-                    "pn": "1",
-                    "ps": "20"
-                ]
-            )
-            favoriteFolders = JSONValue.dictionaries(data["list"]).map(FavoriteFolder.init)
+            favoriteFolders = try await fetchAllFavoriteFolders(mid: mid)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -156,5 +148,13 @@ final class VideoDetailViewModel: ObservableObject {
             query: ["bvid": seedVideo.bvid]
         )
         return data.map(VideoSummary.init)
+    }
+
+    private func fetchAllFavoriteFolders(mid: Int) async throws -> [FavoriteFolder] {
+        let data = try await apiClient.requestEnvelopeData(
+            path: BiliEndpoint.userFavoriteFoldersAll,
+            query: ["up_mid": "\(mid)"]
+        )
+        return JSONValue.dictionaries(data["list"]).map(FavoriteFolder.init)
     }
 }

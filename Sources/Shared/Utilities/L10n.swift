@@ -47,6 +47,7 @@ enum L10n {
     static let favoritePickerTitle = "\u{9009}\u{62e9}\u{6536}\u{85cf}\u{5939}"
     static let favoritePickerLoading = "\u{6b63}\u{5728}\u{52a0}\u{8f7d}\u{6536}\u{85cf}\u{5939}..."
     static let favoritePickerEmpty = "\u{8fd8}\u{6ca1}\u{6709}\u{53ef}\u{9009}\u{6536}\u{85cf}\u{5939}\u{ff0c}\u{8bf7}\u{5148}\u{5728}\u{201c}\u{6211}\u{7684}\u{201d}\u{9875}\u{786e}\u{8ba4}\u{6536}\u{85cf}\u{5939}\u{662f}\u{5426}\u{53ef}\u{89c1}\u{3002}"
+    static let favoritePickerLoadAction = "\u{52a0}\u{8f7d}\u{6536}\u{85cf}\u{5939}\u{5217}\u{8868}"
 
     static let profileLoading = "\u{6b63}\u{5728}\u{540c}\u{6b65}\u{8d26}\u{53f7}\u{4fe1}\u{606f}..."
     static let profileLoadTitle = "\u{5c1a}\u{672a}\u{52a0}\u{8f7d}\u{8d26}\u{53f7}\u{4fe1}\u{606f}"
@@ -256,6 +257,10 @@ enum L10n {
 
     static func contentSubtitle(_ count: Int) -> String {
         "\(count) \u{6761}\u{5185}\u{5bb9}"
+    }
+
+    static func favoriteFoldersSubtitle(_ count: Int) -> String {
+        "\(count) \u{4e2a}\u{6536}\u{85cf}\u{5939}"
     }
 
     static func suggestionSubtitle(_ count: Int) -> String {

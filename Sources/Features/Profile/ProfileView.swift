@@ -228,7 +228,10 @@ struct ProfileView: View {
 
     private var favoriteSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            BiliSectionHeader(title: L10n.favoritesTitle, subtitle: L10n.favoritesSubtitle)
+            BiliSectionHeader(
+                title: L10n.favoritesTitle,
+                subtitle: viewModel.favoriteFolders.isEmpty ? L10n.favoritesSubtitle : L10n.favoriteFoldersSubtitle(viewModel.favoriteFolders.count)
+            )
 
             if viewModel.favoriteFolders.isEmpty && !viewModel.isLoading {
                 EmptyStateView(
@@ -267,10 +270,28 @@ struct ProfileView: View {
                         .buttonStyle(.plain)
                     }
                 }
+
+                favoriteLoadMoreSection
             }
         }
         .padding(18)
         .biliCardStyle()
+    }
+
+    @ViewBuilder
+    private var favoriteLoadMoreSection: some View {
+        if viewModel.isLoadingMoreFavoriteFolders {
+            ProgressView(L10n.loadingMore)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, 4)
+        } else if viewModel.canLoadMoreFavoriteFolders {
+            Button(L10n.loadMore) {
+                Task { await viewModel.loadMoreFavoriteFolders() }
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Color("AccentColor"))
+            .frame(maxWidth: .infinity, alignment: .center)
+        }
     }
 
     private var cookieActionSection: some View {
