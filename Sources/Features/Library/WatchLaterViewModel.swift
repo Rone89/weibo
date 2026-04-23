@@ -7,6 +7,7 @@ final class WatchLaterViewModel: ObservableObject {
     @Published private(set) var isLoadingMore = false
     @Published private(set) var canLoadMore = false
     @Published private(set) var errorMessage: String?
+    @Published private(set) var actionMessage: String?
 
     let apiClient: BiliAPIClient
     private let pageSize = 20
@@ -20,6 +21,7 @@ final class WatchLaterViewModel: ObservableObject {
     func reload() async {
         isLoading = true
         errorMessage = nil
+        actionMessage = nil
         nextPage = 1
         totalCount = 0
 
@@ -76,6 +78,29 @@ final class WatchLaterViewModel: ObservableObject {
             entries.removeAll { $0.id == entry.id }
             totalCount = max(0, totalCount - 1)
             canLoadMore = entries.count < totalCount
+            actionMessage = L10n.watchLaterRemoved
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func clearAll() async {
+        guard !isLoading else { return }
+        guard !isLoadingMore else { return }
+
+        do {
+            let csrf = try await apiClient.requireCSRFToken()
+            _ = try await apiClient.postEnvelopeValue(
+                path: BiliEndpoint.watchLaterClear,
+                form: [
+                    "csrf": csrf
+                ]
+            )
+            entries = []
+            nextPage = 1
+            totalCount = 0
+            canLoadMore = false
+            actionMessage = L10n.watchLaterCleared
         } catch {
             errorMessage = error.localizedDescription
         }

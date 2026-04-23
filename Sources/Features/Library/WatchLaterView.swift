@@ -2,6 +2,7 @@ import SwiftUI
 
 struct WatchLaterView: View {
     @StateObject private var viewModel: WatchLaterViewModel
+    @State private var isPresentingClearConfirmation = false
 
     init(apiClient: BiliAPIClient) {
         _viewModel = StateObject(wrappedValue: WatchLaterViewModel(apiClient: apiClient))
@@ -14,6 +15,12 @@ struct WatchLaterView: View {
                     Text(errorMessage)
                         .font(.footnote)
                         .foregroundStyle(.red)
+                }
+
+                if let actionMessage = viewModel.actionMessage {
+                    Text(actionMessage)
+                        .font(.footnote)
+                        .foregroundStyle(Color("AccentColor"))
                 }
 
                 if viewModel.isLoading && viewModel.entries.isEmpty {
@@ -66,6 +73,16 @@ struct WatchLaterView: View {
         }
         .navigationTitle(L10n.watchLaterTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    isPresentingClearConfirmation = true
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .disabled(viewModel.entries.isEmpty)
+            }
+        }
         .task {
             await viewModel.reload()
         }
@@ -74,6 +91,14 @@ struct WatchLaterView: View {
         }
         .navigationDestination(for: VideoSummary.self) { video in
             VideoDetailView(viewModel: VideoDetailViewModel(apiClient: viewModel.apiClient, seedVideo: video))
+        }
+        .alert(L10n.watchLaterClearConfirmTitle, isPresented: $isPresentingClearConfirmation) {
+            Button(L10n.clearAll, role: .destructive) {
+                Task { await viewModel.clearAll() }
+            }
+            Button(L10n.cancel, role: .cancel) {}
+        } message: {
+            Text(L10n.watchLaterClearConfirmMessage)
         }
     }
 

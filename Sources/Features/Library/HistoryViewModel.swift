@@ -7,6 +7,7 @@ final class HistoryViewModel: ObservableObject {
     @Published private(set) var isLoadingMore = false
     @Published private(set) var canLoadMore = false
     @Published private(set) var errorMessage: String?
+    @Published private(set) var actionMessage: String?
 
     let apiClient: BiliAPIClient
     private let pageSize = 20
@@ -20,6 +21,7 @@ final class HistoryViewModel: ObservableObject {
     func reload() async {
         isLoading = true
         errorMessage = nil
+        actionMessage = nil
         nextCursorMax = 0
         nextCursorViewAt = 0
 
@@ -51,6 +53,51 @@ final class HistoryViewModel: ObservableObject {
             entries.append(contentsOf: loadedEntries.filter { !existingIDs.contains($0.id) })
             updateCursor(using: loadedEntries)
             canLoadMore = loadedEntries.count >= pageSize
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func remove(_ entry: HistoryEntry) async {
+        guard !isLoading else { return }
+        guard !isLoadingMore else { return }
+
+        do {
+            let csrf = try await apiClient.requireCSRFToken()
+            _ = try await apiClient.postEnvelopeValue(
+                path: BiliEndpoint.historyDelete,
+                form: [
+                    "kid": entry.deleteKey,
+                    "jsonp": "jsonp",
+                    "csrf": csrf
+                ]
+            )
+            entries.removeAll { $0.id == entry.id }
+            actionMessage = L10n.historyRemoved
+            canLoadMore = !entries.isEmpty && canLoadMore
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func clearAll() async {
+        guard !isLoading else { return }
+        guard !isLoadingMore else { return }
+
+        do {
+            let csrf = try await apiClient.requireCSRFToken()
+            _ = try await apiClient.postEnvelopeValue(
+                path: BiliEndpoint.historyClear,
+                form: [
+                    "jsonp": "jsonp",
+                    "csrf": csrf
+                ]
+            )
+            entries = []
+            canLoadMore = false
+            nextCursorMax = 0
+            nextCursorViewAt = 0
+            actionMessage = L10n.historyCleared
         } catch {
             errorMessage = error.localizedDescription
         }

@@ -29,9 +29,12 @@ enum BiliEndpoint {
     static let favoriteFolderUnsubscribe = "/x/v3/fav/folder/unfav"
 
     static let historyList = "/x/web-interface/history/cursor"
+    static let historyDelete = "/x/v2/history/delete"
+    static let historyClear = "/x/v2/history/clear"
     static let watchLaterList = "/x/v2/history/toview/web"
     static let watchLaterAdd = "/x/v2/history/toview/add"
     static let watchLaterDelete = "/x/v2/history/toview/v2/dels"
+    static let watchLaterClear = "/x/v2/history/toview/clear"
 
     static let videoDetail = "/x/web-interface/view"
     static let relatedVideos = "/x/web-interface/archive/related"

@@ -7,12 +7,15 @@ struct HistoryEntry: Identifiable, Hashable {
     let progress: Int?
     let badge: String?
     let pageTitle: String?
+    let deleteKey: String
     let cursorMax: Int
     let cursorViewAt: Int
 
     init(json: [String: Any]) {
         let history = JSONValue.dictionary(json["history"])
         let oid = JSONValue.int(history?["oid"]) ?? JSONValue.int(json["kid"]) ?? 0
+        let business = JSONValue.string(history?["business"]) ?? "archive"
+        let kid = JSONValue.string(json["kid"]) ?? "\(JSONValue.int(json["kid"]) ?? oid)"
         let bvid = JSONValue.string(history?["bvid"]) ?? ""
         let cid = JSONValue.int(history?["cid"])
         self.id = !bvid.isEmpty ? bvid : "history-\(oid)-\(cid ?? 0)"
@@ -41,6 +44,7 @@ struct HistoryEntry: Identifiable, Hashable {
         self.progress = JSONValue.int(json["progress"])
         self.badge = JSONValue.string(json["badge"])
         self.pageTitle = JSONValue.string(json["show_title"])
+        self.deleteKey = "\(business)_\(kid)"
         self.cursorMax = oid
         self.cursorViewAt = JSONValue.int(json["view_at"]) ?? 0
     }

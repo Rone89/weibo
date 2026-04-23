@@ -2,6 +2,8 @@ import SwiftUI
 
 struct HistoryView: View {
     @StateObject private var viewModel: HistoryViewModel
+    @State private var isPresentingClearConfirmation = false
+    @State private var pendingDeleteEntry: HistoryEntry?
 
     init(apiClient: BiliAPIClient) {
         _viewModel = StateObject(wrappedValue: HistoryViewModel(apiClient: apiClient))
@@ -14,6 +16,12 @@ struct HistoryView: View {
                     Text(errorMessage)
                         .font(.footnote)
                         .foregroundStyle(.red)
+                }
+
+                if let actionMessage = viewModel.actionMessage {
+                    Text(actionMessage)
+                        .font(.footnote)
+                        .foregroundStyle(Color("AccentColor"))
                 }
 
                 if viewModel.isLoading && viewModel.entries.isEmpty {
@@ -33,31 +41,37 @@ struct HistoryView: View {
                 } else {
                     LazyVStack(spacing: 14) {
                         ForEach(viewModel.entries) { entry in
-                            NavigationLink(value: entry.video) {
-                                VStack(alignment: .leading, spacing: 8) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                NavigationLink(value: entry.video) {
                                     VideoRow(video: entry.video)
-                                    HStack {
-                                        if let pageTitle = entry.pageTitle, !pageTitle.isEmpty {
-                                            Text(pageTitle)
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        Spacer()
-                                        if let progress = entry.progress, progress > 0 {
-                                            Text(L10n.watchedPrefix(BiliFormatting.duration(progress)))
-                                                .font(.caption)
-                                                .foregroundStyle(Color("AccentColor"))
-                                        }
-                                        if let viewedAt = entry.viewedAt {
-                                            Text(BiliFormatting.relativeDate(viewedAt))
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    }
-                                    .padding(.horizontal, 6)
                                 }
+                                .buttonStyle(.plain)
+
+                                HStack {
+                                    if let pageTitle = entry.pageTitle, !pageTitle.isEmpty {
+                                        Text(pageTitle)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    if let progress = entry.progress, progress > 0 {
+                                        Text(L10n.watchedPrefix(BiliFormatting.duration(progress)))
+                                            .font(.caption)
+                                            .foregroundStyle(Color("AccentColor"))
+                                    }
+                                    if let viewedAt = entry.viewedAt {
+                                        Text(BiliFormatting.relativeDate(viewedAt))
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Button(L10n.delete) {
+                                        pendingDeleteEntry = entry
+                                    }
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
+                                }
+                                .padding(.horizontal, 6)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
 
@@ -70,6 +84,16 @@ struct HistoryView: View {
         }
         .navigationTitle(L10n.historyTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    isPresentingClearConfirmation = true
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .disabled(viewModel.entries.isEmpty)
+            }
+        }
         .task {
             await viewModel.reload()
         }
@@ -78,6 +102,37 @@ struct HistoryView: View {
         }
         .navigationDestination(for: VideoSummary.self) { video in
             VideoDetailView(viewModel: VideoDetailViewModel(apiClient: viewModel.apiClient, seedVideo: video))
+        }
+        .alert(L10n.historyClearConfirmTitle, isPresented: $isPresentingClearConfirmation) {
+            Button(L10n.clearAll, role: .destructive) {
+                Task { await viewModel.clearAll() }
+            }
+            Button(L10n.cancel, role: .cancel) {}
+        } message: {
+            Text(L10n.historyClearConfirmMessage)
+        }
+        .alert(
+            L10n.historyDeleteConfirmTitle,
+            isPresented: Binding(
+                get: { pendingDeleteEntry != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        pendingDeleteEntry = nil
+                    }
+                }
+            )
+        ) {
+            Button(L10n.delete, role: .destructive) {
+                if let entry = pendingDeleteEntry {
+                    Task { await viewModel.remove(entry) }
+                }
+                pendingDeleteEntry = nil
+            }
+            Button(L10n.cancel, role: .cancel) {
+                pendingDeleteEntry = nil
+            }
+        } message: {
+            Text(L10n.historyDeleteConfirmMessage)
         }
     }
 
