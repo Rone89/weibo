@@ -251,12 +251,12 @@ struct NativePlayerView: View {
                                         if let detail = option.detail, !detail.isEmpty {
                                             Text(detail)
                                                 .font(.caption)
-                                                .foregroundStyle(viewModel.selectedQuality == option.qn ? .white.opacity(0.9) : .secondary)
+                                                .foregroundStyle(viewModel.selectedQualityID == option.id ? .white.opacity(0.9) : .secondary)
                                                 .lineLimit(2)
                                         }
                                     }
                                     Spacer(minLength: 8)
-                                    if viewModel.selectedQuality == option.qn {
+                                    if viewModel.selectedQualityID == option.id {
                                         Image(systemName: "checkmark.circle.fill")
                                             .font(.title3)
                                     }
@@ -271,18 +271,18 @@ struct NativePlayerView: View {
                                 }
 
                                 HStack(spacing: 8) {
-                                    qualityBadge(option.streamBadge, isSelected: viewModel.selectedQuality == option.qn)
+                                    qualityBadge(option.streamBadge, isSelected: viewModel.selectedQualityID == option.id)
                                     if let audioDetail = option.audioDetail {
-                                        qualityBadge(audioDetail, isSelected: viewModel.selectedQuality == option.qn)
+                                        qualityBadge(audioDetail, isSelected: viewModel.selectedQualityID == option.id)
                                     }
                                 }
                             }
-                            .foregroundStyle(viewModel.selectedQuality == option.qn ? .white : .primary)
+                            .foregroundStyle(viewModel.selectedQualityID == option.id ? .white : .primary)
                             .frame(width: 250, alignment: .leading)
                             .padding(16)
                             .background(
                                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .fill(viewModel.selectedQuality == option.qn ? Color("AccentColor") : Color(.secondarySystemBackground))
+                                    .fill(viewModel.selectedQualityID == option.id ? Color("AccentColor") : Color(.secondarySystemBackground))
                             )
                         }
                         .buttonStyle(.plain)

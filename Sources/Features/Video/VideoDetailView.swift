@@ -166,7 +166,7 @@ struct VideoDetailView: View {
             ZStack(alignment: .bottomLeading) {
                 AsyncPosterImage(
                     urlString: viewModel.detail?.coverURL ?? viewModel.seedVideo.coverURL,
-                    width: UIScreen.main.bounds.width - 32,
+                    width: nil,
                     height: 220
                 )
                 .frame(maxWidth: .infinity)

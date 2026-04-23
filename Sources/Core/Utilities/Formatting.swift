@@ -100,9 +100,23 @@ enum BiliFormatting {
 
 extension String {
     var normalizedBiliURLString: String {
-        if hasPrefix("//") {
-            return "https:\(self)"
+        var candidate = trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !candidate.isEmpty else {
+            return candidate
         }
-        return self
+
+        if candidate.hasPrefix("//") {
+            candidate = "https:\(candidate)"
+        } else if candidate.lowercased().hasPrefix("http://") {
+            candidate = "https://" + candidate.dropFirst("http://".count)
+        }
+
+        if let components = URLComponents(string: candidate),
+           let normalized = components.string,
+           !normalized.isEmpty {
+            return normalized
+        }
+
+        return candidate.addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed) ?? candidate
     }
 }

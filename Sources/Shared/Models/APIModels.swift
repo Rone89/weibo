@@ -64,6 +64,16 @@ enum JSONValue {
         }
         return []
     }
+
+    static func stringArray(_ value: Any?) -> [String] {
+        if let strings = value as? [String] {
+            return strings
+        }
+        if let values = value as? [Any] {
+            return values.compactMap(string)
+        }
+        return []
+    }
 }
 
 struct VideoSummary: Identifiable, Hashable {

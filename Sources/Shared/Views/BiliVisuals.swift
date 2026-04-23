@@ -14,23 +14,24 @@ struct BiliBackground<Content: View>: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            .ignoresSafeArea()
+            .ignoresSafeArea(edges: .top)
 
-            Circle()
-                .fill(Color("AccentColor").opacity(0.12))
-                .frame(width: 280, height: 280)
-                .blur(radius: 8)
-                .offset(x: 120, y: -220)
+            Group {
+                Ellipse()
+                    .fill(Color("AccentColor").opacity(0.08))
+                    .frame(width: 360, height: 260)
+                    .blur(radius: 44)
+                    .offset(x: 190, y: -235)
 
-            Circle()
-                .fill(Color.orange.opacity(0.12))
-                .frame(width: 220, height: 220)
-                .blur(radius: 12)
-                .offset(x: -140, y: 180)
-
-            VStack(spacing: 18) {
-                content
+                Ellipse()
+                    .fill(Color.orange.opacity(0.06))
+                    .frame(width: 280, height: 210)
+                    .blur(radius: 54)
+                    .offset(x: -190, y: 250)
             }
+            .allowsHitTesting(false)
+
+            content
         }
     }
 }

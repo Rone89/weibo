@@ -198,12 +198,14 @@ struct ProfileView: View {
                 } label: {
                     actionCard(title: L10n.historyTitle, systemImage: "clock.arrow.circlepath")
                 }
+                .buttonStyle(.plain)
 
                 NavigationLink {
                     WatchLaterView(apiClient: viewModel.apiClient)
                 } label: {
                     actionCard(title: L10n.watchLaterTitle, systemImage: "bookmark")
                 }
+                .buttonStyle(.plain)
             }
 
             HStack(spacing: 12) {

@@ -13,6 +13,7 @@ final class NativePlayerViewModel: ObservableObject {
     @Published private(set) var overlayDanmaku: [DanmakuOverlayItem] = []
     @Published private(set) var isLoadingDanmaku = false
     @Published private(set) var selectedQuality: Int?
+    @Published private(set) var selectedQualityID: String?
     @Published private(set) var currentPlaybackSeconds: TimeInterval = 0
     @Published private(set) var totalDurationSeconds: TimeInterval = 0
     @Published private(set) var isPlaying = false
@@ -25,6 +26,9 @@ final class NativePlayerViewModel: ObservableObject {
     let initialSeekSeconds: TimeInterval?
 
     private var playbackObserver: Any?
+    private var playerItemStatusObservation: NSKeyValueObservation?
+    private var playerFailureObserver: NSObjectProtocol?
+    private var playerStallObserver: NSObjectProtocol?
     private let danmakuTravelDuration: TimeInterval = 6
     private let danmakuLaneCount = 4
     private let progressStore: PlaybackProgressStore
@@ -42,6 +46,8 @@ final class NativePlayerViewModel: ObservableObject {
         self.selectedPage = selectedPage
         self.initialSeekSeconds = initialSeekSeconds
         self.progressStore = progressStore
+        self.player.automaticallyWaitsToMinimizeStalling = true
+        self.player.allowsExternalPlayback = true
     }
 
     var qualityOptions: [PlaybackQualityOption] {
@@ -76,11 +82,17 @@ final class NativePlayerViewModel: ObservableObject {
         do {
             let playable = try await resolvePlayableSource(preferredQuality: selectedQuality)
             source = playable
-            selectedQuality = playable.defaultQuality?.qn
-            if let option = playable.defaultQuality {
-                try await applyQuality(option, preserveTime: false, autoplay: true)
+
+            if let option = try await resolveInitialQuality(from: playable) {
+                selectedQuality = option.qn
+                selectedQualityID = option.id
+                source = makeSource(from: playable, selectedOption: option)
                 restorePlaybackProgressIfNeeded()
+            } else {
+                selectedQuality = nil
+                selectedQualityID = nil
             }
+
             await loadDanmakuIfNeeded()
             startObservingPlaybackTime()
         } catch {
@@ -98,6 +110,7 @@ final class NativePlayerViewModel: ObservableObject {
             isPlaying = false
             persistPlaybackProgress(force: true)
         } else {
+            activateAudioSession()
             player.playImmediately(atRate: playbackRate)
             isPlaying = true
         }
@@ -135,7 +148,7 @@ final class NativePlayerViewModel: ObservableObject {
     }
 
     func selectQuality(_ option: PlaybackQualityOption) async {
-        guard selectedQuality != option.qn else { return }
+        guard selectedQualityID != option.id else { return }
         isLoading = true
         errorMessage = nil
         let shouldAutoplay = isPlaying
@@ -143,6 +156,7 @@ final class NativePlayerViewModel: ObservableObject {
         do {
             try await applyQuality(option, preserveTime: true, autoplay: shouldAutoplay)
             selectedQuality = option.qn
+            selectedQualityID = option.id
             if let current = source {
                 source = NativePlayableSource(
                     title: current.title,
@@ -169,6 +183,7 @@ final class NativePlayerViewModel: ObservableObject {
     func stop() {
         persistPlaybackProgress(force: true)
         player.pause()
+        clearPlayerItemObservers()
         if let playbackObserver {
             player.removeTimeObserver(playbackObserver)
             self.playbackObserver = nil
@@ -178,6 +193,7 @@ final class NativePlayerViewModel: ObservableObject {
         currentPlaybackSeconds = 0
         totalDurationSeconds = TimeInterval(selectedPage?.duration ?? video.duration ?? 0)
         isPlaying = false
+        selectedQualityID = nil
         lastPersistedBucket = -1
         visibleDanmaku = []
         overlayDanmaku = []
@@ -192,6 +208,10 @@ final class NativePlayerViewModel: ObservableObject {
         guard let webURL = URL(string: "https://www.bilibili.com/video/\(video.bvid)?p=\(selectedPage?.page ?? 1)") else {
             throw APIError.invalidURL
         }
+        let playbackHeaders = [
+            "Referer": "\(BiliBaseURL.web)/",
+            "Origin": BiliBaseURL.web
+        ]
 
         let dashData = try await apiClient.requestEnvelopeData(
             path: BiliEndpoint.videoPlayURL,
@@ -208,6 +228,7 @@ final class NativePlayerViewModel: ObservableObject {
                 "isGaiaAvoided": "true",
                 "web_location": "1315873"
             ].filter { !$0.value.isEmpty },
+            headers: playbackHeaders,
             signedByWBI: true
         )
 
@@ -226,6 +247,7 @@ final class NativePlayerViewModel: ObservableObject {
                 "isGaiaAvoided": "true",
                 "web_location": "1315873"
             ].filter { !$0.value.isEmpty },
+            headers: playbackHeaders,
             signedByWBI: true
         )
 
@@ -336,52 +358,47 @@ final class NativePlayerViewModel: ObservableObject {
                 return lhs.qn > rhs.qn
             }
 
-        if !dashOptions.isEmpty {
-            return dashOptions
-        }
-
+        var allOptions = dashOptions
         if let durl = JSONValue.dictionaries(directData["durl"]).first,
            let videoURL = urlFrom(json: durl) {
             let qn = JSONValue.int(directData["quality"]) ?? preferredQuality
-            return [
-                PlaybackQualityOption(
-                    qn: qn,
-                    label: descriptionMap[qn] ?? "QN \(qn)",
-                    detail: nil,
-                    mode: .direct,
-                    resolution: nil,
-                    bitrate: nil,
-                    codecs: nil,
-                    frameRate: nil,
-                    dynamicRange: nil,
-                    videoURL: videoURL,
-                    audioURL: nil
-                )
-            ]
+            let directOption = PlaybackQualityOption(
+                qn: qn,
+                label: descriptionMap[qn] ?? "QN \(qn)",
+                detail: nil,
+                mode: .direct,
+                resolution: nil,
+                bitrate: nil,
+                codecs: nil,
+                frameRate: nil,
+                dynamicRange: nil,
+                videoURL: videoURL,
+                audioURL: nil
+            )
+
+            allOptions.removeAll { $0.mode == .direct && $0.qn == qn }
+            allOptions.insert(directOption, at: 0)
         }
 
-        return []
+        return allOptions
     }
 
     private func chooseDefaultQuality(from options: [PlaybackQualityOption], preferredQuality: Int) -> PlaybackQualityOption? {
-        options.first(where: { $0.qn == preferredQuality }) ?? options.first
+        options.first(where: { $0.mode == .direct && $0.qn == preferredQuality }) ??
+            options.first(where: { $0.mode == .direct }) ??
+            options.first(where: { $0.qn == preferredQuality }) ??
+            options.first
     }
 
     private func applyQuality(_ option: PlaybackQualityOption, preserveTime: Bool, autoplay: Bool) async throws {
         let previousTime = preserveTime ? player.currentTime() : .zero
         let shouldResume = autoplay || isPlaying || player.rate > 0
 
-        let item: AVPlayerItem
-        switch option.mode {
-        case .direct:
-            item = AVPlayerItem(url: option.videoURL)
-        case .composite:
-            item = try await makeCompositeItem(videoURL: option.videoURL, audioURL: option.audioURL) ??
-                AVPlayerItem(url: option.videoURL)
-        }
-
+        let item = try await makePlayerItem(for: option)
+        errorMessage = nil
         player.replaceCurrentItem(with: item)
         playerItem = item
+        observePlayerItem(item)
         totalDurationSeconds = TimeInterval(selectedPage?.duration ?? video.duration ?? 0)
 
         if preserveTime && previousTime.seconds.isFinite && previousTime.seconds > 0 {
@@ -392,6 +409,7 @@ final class NativePlayerViewModel: ObservableObject {
         }
 
         if shouldResume {
+            activateAudioSession()
             player.playImmediately(atRate: playbackRate)
             isPlaying = true
         } else {
@@ -476,11 +494,15 @@ final class NativePlayerViewModel: ObservableObject {
 
     private func makeCompositeItem(videoURL: URL, audioURL: URL?) async throws -> AVPlayerItem? {
         guard let audioURL else {
-            return AVPlayerItem(url: videoURL)
+            let asset = makeMediaAsset(url: videoURL)
+            guard try await asset.load(.isPlayable) else {
+                throw APIError.server(L10n.nativeStreamUnavailable)
+            }
+            return AVPlayerItem(asset: asset)
         }
 
-        let videoAsset = AVURLAsset(url: videoURL)
-        let audioAsset = AVURLAsset(url: audioURL)
+        let videoAsset = makeMediaAsset(url: videoURL)
+        let audioAsset = makeMediaAsset(url: audioURL)
 
         async let videoTracks = try videoAsset.loadTracks(withMediaType: .video)
         async let audioTracks = try audioAsset.loadTracks(withMediaType: .audio)
@@ -510,11 +532,19 @@ final class NativePlayerViewModel: ObservableObject {
     }
 
     private func urlFrom(json: [String: Any]?) -> URL? {
-        let urlString = JSONValue.string(json?["base_url"]) ??
-            JSONValue.string(json?["baseUrl"]) ??
+        let primaryCandidates = [
+            JSONValue.string(json?["base_url"]),
+            JSONValue.string(json?["baseUrl"]),
             JSONValue.string(json?["url"])
-        guard let urlString else { return nil }
-        return URL(string: urlString.normalizedBiliURLString)
+        ].compactMap { $0 }
+        let candidates = primaryCandidates +
+            JSONValue.stringArray(json?["backup_url"]) +
+            JSONValue.stringArray(json?["backupUrl"])
+
+        return candidates
+            .map(\.normalizedBiliURLString)
+            .compactMap(URL.init(string:))
+            .first
     }
 
     private func refreshPlaybackState(with time: CMTime) {
@@ -704,5 +734,141 @@ final class NativePlayerViewModel: ObservableObject {
         let fallbackLane = laneBusyUntil.enumerated().min(by: { $0.element < $1.element })?.offset ?? 0
         laneBusyUntil[fallbackLane] = time + 0.9
         return fallbackLane
+    }
+
+    private func resolveInitialQuality(from playable: NativePlayableSource) async throws -> PlaybackQualityOption? {
+        guard let preferredOption = playable.defaultQuality else {
+            return nil
+        }
+
+        let candidates = [preferredOption] + playable.qualityOptions.filter { $0 != preferredOption }
+        var lastError: Error?
+
+        for option in candidates {
+            do {
+                try await applyQuality(option, preserveTime: false, autoplay: true)
+                return option
+            } catch {
+                lastError = error
+            }
+        }
+
+        if let lastError {
+            throw lastError
+        }
+        return nil
+    }
+
+    private func makeSource(from playable: NativePlayableSource, selectedOption: PlaybackQualityOption) -> NativePlayableSource {
+        NativePlayableSource(
+            title: playable.title,
+            mode: selectedOption.mode == .direct ? .direct : .composite,
+            fallbackWebURL: playable.fallbackWebURL,
+            note: note(for: selectedOption),
+            qualityOptions: playable.qualityOptions,
+            defaultQuality: selectedOption,
+            currentQualityLabel: selectedOption.label
+        )
+    }
+
+    private func makePlayerItem(for option: PlaybackQualityOption) async throws -> AVPlayerItem {
+        switch option.mode {
+        case .direct:
+            let asset = makeMediaAsset(url: option.videoURL)
+            guard try await asset.load(.isPlayable) else {
+                throw APIError.server(L10n.nativeStreamUnavailable)
+            }
+            return AVPlayerItem(asset: asset)
+        case .composite:
+            return try await makeCompositeItem(videoURL: option.videoURL, audioURL: option.audioURL) ??
+                AVPlayerItem(asset: makeMediaAsset(url: option.videoURL))
+        }
+    }
+
+    private func makeMediaAsset(url: URL) -> AVURLAsset {
+        let cookies = HTTPCookieStorage.shared.cookies(for: url) ?? HTTPCookieStorage.shared.cookies ?? []
+        let headers = [
+            "User-Agent": BiliAPIClient.userAgent,
+            "Referer": "\(BiliBaseURL.web)/",
+            "Origin": BiliBaseURL.web,
+            "Accept": "*/*"
+        ]
+        let options: [String: Any] = [
+            "AVURLAssetHTTPUserAgentKey": BiliAPIClient.userAgent,
+            "AVURLAssetHTTPHeaderFieldsKey": headers,
+            "AVURLAssetHTTPCookiesKey": cookies
+        ]
+        return AVURLAsset(url: url, options: options)
+    }
+
+    private func observePlayerItem(_ item: AVPlayerItem) {
+        clearPlayerItemObservers()
+
+        playerItemStatusObservation = item.observe(\.status, options: [.initial, .new]) { [weak self] observedItem, _ in
+            guard let self else { return }
+
+            Task { @MainActor in
+                switch observedItem.status {
+                case .readyToPlay:
+                    self.errorMessage = nil
+                case .failed:
+                    self.errorMessage = observedItem.error?.localizedDescription ?? L10n.nativePlaybackFailed
+                    self.isPlaying = false
+                case .unknown:
+                    break
+                @unknown default:
+                    break
+                }
+            }
+        }
+
+        playerFailureObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemFailedToPlayToEndTime,
+            object: item,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self else { return }
+            let error = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? NSError
+            self.errorMessage = error?.localizedDescription ?? L10n.nativePlaybackFailed
+            self.isPlaying = false
+        }
+
+        playerStallObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemPlaybackStalled,
+            object: item,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            if self.errorMessage == nil {
+                self.errorMessage = L10n.nativePlaybackStalled
+            }
+        }
+    }
+
+    private func clearPlayerItemObservers() {
+        playerItemStatusObservation?.invalidate()
+        playerItemStatusObservation = nil
+
+        if let playerFailureObserver {
+            NotificationCenter.default.removeObserver(playerFailureObserver)
+            self.playerFailureObserver = nil
+        }
+
+        if let playerStallObserver {
+            NotificationCenter.default.removeObserver(playerStallObserver)
+            self.playerStallObserver = nil
+        }
+    }
+
+    private func activateAudioSession() {
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .moviePlayback, options: [.allowAirPlay])
+            try session.setActive(true)
+        } catch {
+            if errorMessage == nil {
+                errorMessage = error.localizedDescription
+            }
+        }
     }
 }

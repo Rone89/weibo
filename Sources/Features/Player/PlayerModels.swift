@@ -18,7 +18,7 @@ struct PlaybackQualityOption: Identifiable, Hashable {
     let videoURL: URL
     let audioURL: URL?
 
-    var id: Int { qn }
+    var id: String { "\(mode)-\(qn)-\(videoURL.absoluteString)" }
 
     var streamBadge: String {
         mode == .direct ? L10n.qualityStreamDirect : L10n.qualityStreamDash
