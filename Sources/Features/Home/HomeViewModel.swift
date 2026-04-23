@@ -23,13 +23,17 @@ final class HomeViewModel: ObservableObject {
     @Published private(set) var hotVideos: [VideoSummary] = []
     @Published private(set) var searchPlaceholder = ""
     @Published private(set) var isLoading = false
+    @Published private(set) var isLoadingMoreRecommended = false
+    @Published private(set) var canLoadMoreRecommended = false
     @Published private(set) var isLoadingMoreHot = false
     @Published private(set) var canLoadMoreHot = false
     @Published private(set) var errorMessage: String?
 
     private let apiClient: BiliAPIClient
     private var hasLoaded = false
+    private var nextRecommendedFreshIndex = 0
     private var nextHotPage = 1
+    private let recommendedPageSize = 20
     private let hotPageSize = 20
 
     init(apiClient: BiliAPIClient) {
@@ -42,16 +46,22 @@ final class HomeViewModel: ObservableObject {
     }
 
     func reload() async {
+        guard !isLoading else { return }
+
         isLoading = true
         errorMessage = nil
 
         do {
+            let previousRecommendedIDs = Set(recommendedVideos.map(\.id))
             async let placeholder = fetchSearchPlaceholder()
-            async let recommended = fetchRecommendedVideos()
+            async let recommended = fetchInitialRecommendedVideos(avoiding: previousRecommendedIDs)
             async let hot = fetchHotVideos(page: 1)
 
             searchPlaceholder = try await placeholder
-            recommendedVideos = try await recommended
+            let loadedRecommendedVideos = try await recommended
+            recommendedVideos = loadedRecommendedVideos
+            nextRecommendedFreshIndex = max(1, loadedRecommendedVideos.isEmpty ? 0 : nextRecommendedFreshIndex)
+            canLoadMoreRecommended = loadedRecommendedVideos.count >= recommendedPageSize
             let loadedHotVideos = try await hot
             hotVideos = loadedHotVideos
             nextHotPage = 2
@@ -62,6 +72,43 @@ final class HomeViewModel: ObservableObject {
         }
 
         isLoading = false
+    }
+
+    func loadMoreRecommendedVideos() async {
+        guard !isLoading else { return }
+        guard !isLoadingMoreRecommended else { return }
+        guard canLoadMoreRecommended else { return }
+
+        isLoadingMoreRecommended = true
+        defer { isLoadingMoreRecommended = false }
+
+        do {
+            let existingIDs = Set(recommendedVideos.map(\.id))
+            var candidateFreshIndex = nextRecommendedFreshIndex
+            var lastBatchCount = 0
+
+            for _ in 0..<3 {
+                let loadedRecommendedVideos = try await fetchRecommendedVideos(freshIndex: candidateFreshIndex)
+                lastBatchCount = loadedRecommendedVideos.count
+                candidateFreshIndex += 1
+
+                let uniqueVideos = loadedRecommendedVideos.filter { incoming in
+                    !existingIDs.contains(incoming.id)
+                }
+
+                if !uniqueVideos.isEmpty || loadedRecommendedVideos.count < recommendedPageSize {
+                    recommendedVideos.append(contentsOf: uniqueVideos)
+                    nextRecommendedFreshIndex = candidateFreshIndex
+                    canLoadMoreRecommended = loadedRecommendedVideos.count >= recommendedPageSize
+                    return
+                }
+            }
+
+            nextRecommendedFreshIndex = candidateFreshIndex
+            canLoadMoreRecommended = lastBatchCount >= recommendedPageSize
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     func loadMoreHotVideos() async {
@@ -93,16 +140,37 @@ final class HomeViewModel: ObservableObject {
         return JSONValue.string(data["name"]) ?? L10n.searchPlaceholderDefault
     }
 
-    private func fetchRecommendedVideos() async throws -> [VideoSummary] {
+    private func fetchInitialRecommendedVideos(avoiding previousIDs: Set<String>) async throws -> [VideoSummary] {
+        var candidateFreshIndex = 0
+        var lastBatch: [VideoSummary] = []
+
+        for _ in 0..<3 {
+            let loadedVideos = try await fetchRecommendedVideos(freshIndex: candidateFreshIndex)
+            lastBatch = loadedVideos
+
+            let hasNewContent = previousIDs.isEmpty || loadedVideos.contains { !previousIDs.contains($0.id) }
+            if hasNewContent || loadedVideos.count < recommendedPageSize {
+                nextRecommendedFreshIndex = candidateFreshIndex + 1
+                return loadedVideos
+            }
+
+            candidateFreshIndex += 1
+        }
+
+        nextRecommendedFreshIndex = candidateFreshIndex
+        return lastBatch
+    }
+
+    private func fetchRecommendedVideos(freshIndex: Int) async throws -> [VideoSummary] {
         let data = try await apiClient.requestEnvelopeData(
             path: BiliEndpoint.recommendFeed,
             query: [
                 "version": "1",
                 "feed_version": "V8",
                 "homepage_ver": "1",
-                "ps": "20",
-                "fresh_idx": "1",
-                "brush": "1",
+                "ps": "\(recommendedPageSize)",
+                "fresh_idx": "\(freshIndex)",
+                "brush": "\(freshIndex)",
                 "fresh_type": "4"
             ],
             signedByWBI: true

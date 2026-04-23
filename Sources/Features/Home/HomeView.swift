@@ -56,22 +56,28 @@ struct HomeView: View {
                                     VideoRow(video: video)
                                 }
                                 .buttonStyle(.plain)
+                                .onAppear {
+                                    triggerLoadMoreIfNeeded(for: video)
+                                }
                             }
                         }
 
-                        if viewModel.selectedFeed == .hot {
+                        if isLoadingMoreCurrentFeed || canLoadMoreCurrentFeed {
                             loadMoreSection
                         }
                     }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
-                .padding(.bottom, 24)
+                .padding(.bottom, 104)
             }
             .background {
                 BiliBackground {
                     Color.clear
                 }
+            }
+            .safeAreaInset(edge: .bottom) {
+                Color.clear.frame(height: 10)
             }
             .navigationTitle(L10n.appTitle)
             .navigationBarTitleDisplayMode(.large)
@@ -82,6 +88,7 @@ struct HomeView: View {
                     } label: {
                         Image(systemName: "arrow.clockwise")
                     }
+                    .foregroundStyle(Color("AccentColor"))
                 }
             }
             .refreshable {
@@ -101,6 +108,24 @@ struct HomeView: View {
             return viewModel.recommendedVideos
         case .hot:
             return viewModel.hotVideos
+        }
+    }
+
+    private var isLoadingMoreCurrentFeed: Bool {
+        switch viewModel.selectedFeed {
+        case .recommended:
+            return viewModel.isLoadingMoreRecommended
+        case .hot:
+            return viewModel.isLoadingMoreHot
+        }
+    }
+
+    private var canLoadMoreCurrentFeed: Bool {
+        switch viewModel.selectedFeed {
+        case .recommended:
+            return viewModel.canLoadMoreRecommended
+        case .hot:
+            return viewModel.canLoadMoreHot
         }
     }
 
@@ -140,7 +165,7 @@ struct HomeView: View {
                     .foregroundStyle(Color("AccentColor"))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(.white.opacity(0.8), in: Capsule())
+                    .background(Color("AccentColor").opacity(0.12), in: Capsule())
             }
 
             HStack(spacing: 10) {
@@ -169,17 +194,41 @@ struct HomeView: View {
 
     @ViewBuilder
     private var loadMoreSection: some View {
-        if viewModel.isLoadingMoreHot {
+        if isLoadingMoreCurrentFeed {
             ProgressView(L10n.loadingMore)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 12)
-        } else if viewModel.canLoadMoreHot {
+        } else if canLoadMoreCurrentFeed {
             Button(L10n.loadMore) {
-                Task { await viewModel.loadMoreHotVideos() }
+                Task { await loadMoreCurrentFeed() }
             }
             .buttonStyle(.plain)
             .biliPrimaryActionButton(fillWidth: false)
             .frame(maxWidth: .infinity, alignment: .center)
+        }
+    }
+
+    private func triggerLoadMoreIfNeeded(for video: VideoSummary) {
+        guard shouldLoadMore(after: video) else { return }
+
+        Task {
+            await loadMoreCurrentFeed()
+        }
+    }
+
+    private func shouldLoadMore(after video: VideoSummary) -> Bool {
+        guard canLoadMoreCurrentFeed else { return false }
+
+        let triggerIDs = Set(currentVideos.suffix(4).map(\.id))
+        return triggerIDs.contains(video.id)
+    }
+
+    private func loadMoreCurrentFeed() async {
+        switch viewModel.selectedFeed {
+        case .recommended:
+            await viewModel.loadMoreRecommendedVideos()
+        case .hot:
+            await viewModel.loadMoreHotVideos()
         }
     }
 }

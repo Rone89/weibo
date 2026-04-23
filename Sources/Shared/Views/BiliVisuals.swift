@@ -14,22 +14,7 @@ struct BiliBackground<Content: View>: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            .ignoresSafeArea(edges: .top)
-
-            Group {
-                Ellipse()
-                    .fill(Color("AccentColor").opacity(0.08))
-                    .frame(width: 360, height: 260)
-                    .blur(radius: 44)
-                    .offset(x: 190, y: -235)
-
-                Ellipse()
-                    .fill(Color.orange.opacity(0.06))
-                    .frame(width: 280, height: 210)
-                    .blur(radius: 54)
-                    .offset(x: -190, y: 250)
-            }
-            .allowsHitTesting(false)
+            .ignoresSafeArea()
 
             content
         }
