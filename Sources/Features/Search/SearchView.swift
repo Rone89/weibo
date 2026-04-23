@@ -82,8 +82,8 @@ struct SearchView: View {
             Button(L10n.searchAction) {
                 Task { await viewModel.submitSearch() }
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Color("AccentColor"))
+            .buttonStyle(.plain)
+            .biliPrimaryActionButton(fillWidth: false)
             .disabled(viewModel.isSearching)
         }
     }
@@ -151,8 +151,8 @@ struct SearchView: View {
                     Button(L10n.loadMore) {
                         Task { await viewModel.loadMoreResults() }
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color("AccentColor"))
+                    .buttonStyle(.plain)
+                    .biliPrimaryActionButton(fillWidth: false)
                     .frame(maxWidth: .infinity, alignment: .center)
                 }
             }

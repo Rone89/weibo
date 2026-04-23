@@ -177,8 +177,8 @@ struct HomeView: View {
             Button(L10n.loadMore) {
                 Task { await viewModel.loadMoreHotVideos() }
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Color("AccentColor"))
+            .buttonStyle(.plain)
+            .biliPrimaryActionButton(fillWidth: false)
             .frame(maxWidth: .infinity, alignment: .center)
         }
     }

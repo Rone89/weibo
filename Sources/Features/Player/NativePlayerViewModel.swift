@@ -320,7 +320,9 @@ final class NativePlayerViewModel: ObservableObject {
         let dash = JSONValue.dictionary(dashData["dash"])
         let videos = JSONValue.dictionaries(dash?["video"])
         let audios = JSONValue.dictionaries(dash?["audio"])
-        let defaultAudioURL = urlFrom(json: audios.first)
+        let flacAudio = JSONValue.dictionary(JSONValue.dictionary(dash?["flac"])?["audio"])
+        let dolbyAudio = JSONValue.dictionaries(JSONValue.dictionary(dash?["dolby"])?["audio"]).first
+        let defaultAudioURL = urlFrom(json: audios.first) ?? urlFrom(json: flacAudio) ?? urlFrom(json: dolbyAudio)
 
         let dashOptions = Dictionary(grouping: videos, by: { JSONValue.int($0["id"]) ?? 0 })
             .compactMap { qn, candidates -> PlaybackQualityOption? in
@@ -614,6 +616,12 @@ final class NativePlayerViewModel: ObservableObject {
     }
 
     private func compareDashCandidates(_ lhs: [String: Any], _ rhs: [String: Any]) -> Bool {
+        let lhsCodecPriority = codecPriority(from: lhs)
+        let rhsCodecPriority = codecPriority(from: rhs)
+        if lhsCodecPriority != rhsCodecPriority {
+            return lhsCodecPriority > rhsCodecPriority
+        }
+
         let lhsBandwidth = JSONValue.int(lhs["bandwidth"]) ?? 0
         let rhsBandwidth = JSONValue.int(rhs["bandwidth"]) ?? 0
         if lhsBandwidth != rhsBandwidth {
@@ -623,6 +631,22 @@ final class NativePlayerViewModel: ObservableObject {
         let lhsCodecid = JSONValue.int(lhs["codecid"]) ?? 0
         let rhsCodecid = JSONValue.int(rhs["codecid"]) ?? 0
         return lhsCodecid > rhsCodecid
+    }
+
+    private func codecPriority(from json: [String: Any]) -> Int {
+        let rawCodec = (JSONValue.string(json["codecs"]) ?? "").lowercased()
+        let codecid = JSONValue.int(json["codecid"]) ?? 0
+
+        if rawCodec.contains("avc1") || codecid == 7 {
+            return 3
+        }
+        if rawCodec.contains("hev1") || rawCodec.contains("hvc1") || codecid == 12 {
+            return 2
+        }
+        if rawCodec.contains("av01") || codecid == 13 {
+            return 1
+        }
+        return 0
     }
 
     private func detailText(resolution: String?, bitrate: String?, codecs: String?) -> String? {

@@ -35,8 +35,8 @@ struct EmptyStateView: View {
 
             if let actionTitle, let action {
                 Button(actionTitle, action: action)
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color("AccentColor"))
+                    .buttonStyle(.plain)
+                    .biliPrimaryActionButton(fillWidth: false)
                     .padding(.top, 4)
             }
         }

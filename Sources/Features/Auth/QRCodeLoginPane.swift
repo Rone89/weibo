@@ -58,8 +58,8 @@ struct QRCodeLoginPane: View {
                 Button(L10n.qrLoginRefresh) {
                     Task { await viewModel.refreshQRCode() }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Color("AccentColor"))
+                .buttonStyle(.plain)
+                .biliPrimaryActionButton(fillWidth: false)
                 .disabled(viewModel.isLoading)
             }
 

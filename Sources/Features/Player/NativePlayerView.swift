@@ -4,17 +4,25 @@ import SwiftUI
 import UIKit
 
 struct NativePlayerView: View {
+    enum DisplayMode {
+        case standalone
+        case embedded
+    }
+
     @StateObject private var viewModel: NativePlayerViewModel
+    let displayMode: DisplayMode
     @State private var scrubPosition: Double = 0
     @State private var isScrubbing = false
     @State private var isPresentingFullscreen = false
 
     init(
+        displayMode: DisplayMode = .standalone,
         apiClient: BiliAPIClient,
         video: VideoSummary,
         selectedPage: VideoDetailPage?,
         initialSeekSeconds: TimeInterval? = nil
     ) {
+        self.displayMode = displayMode
         _viewModel = StateObject(
             wrappedValue: NativePlayerViewModel(
                 apiClient: apiClient,
@@ -26,45 +34,14 @@ struct NativePlayerView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 18) {
-                playerArea
-
-                VStack(alignment: .leading, spacing: 16) {
-                    playerHeader
-                    transportSection
-                    qualitySection
-                    danmakuSection
-
-                    if let errorMessage = viewModel.errorMessage {
-                        Text(errorMessage)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                    }
-
-                    if let source = viewModel.source, source.mode == .webFallback {
-                        Link(destination: source.fallbackWebURL) {
-                            Label(L10n.nativePlayerWebFallback, systemImage: "safari")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Color("AccentColor"))
-                    }
-                }
-                .padding(18)
-                .biliCardStyle()
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 28)
-        }
-        .background {
-            BiliBackground {
-                Color.clear
+        Group {
+            switch displayMode {
+            case .standalone:
+                standaloneBody
+            case .embedded:
+                embeddedBody
             }
         }
-        .navigationTitle(L10n.nativePlayerTitle)
-        .navigationBarTitleDisplayMode(.inline)
         .overlay {
             if viewModel.isLoading {
                 ProgressView(L10n.nativePlayerResolving)
@@ -95,6 +72,33 @@ struct NativePlayerView: View {
         }
     }
 
+    private var standaloneBody: some View {
+        ScrollView {
+            playerContent
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 28)
+        }
+        .background {
+            BiliBackground {
+                Color.clear
+            }
+        }
+        .navigationTitle(L10n.nativePlayerTitle)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var embeddedBody: some View {
+        playerContent
+    }
+
+    private var playerContent: some View {
+        VStack(spacing: 18) {
+            playerArea
+            playerControlCard
+        }
+    }
+
     private var playerArea: some View {
         InteractivePlayerSurface(
             viewModel: viewModel,
@@ -106,6 +110,44 @@ struct NativePlayerView: View {
         .frame(height: 260)
     }
 
+    private var playerControlCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            playerHeader
+            transportSection
+
+            if !viewModel.qualityOptions.isEmpty {
+                qualitySection
+            }
+
+            danmakuSection
+
+            if let errorMessage = viewModel.errorMessage {
+                Text(errorMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+
+            if let source = viewModel.source, source.mode == .webFallback {
+                unavailablePlaybackNote(source)
+            }
+        }
+        .padding(18)
+        .biliCardStyle()
+    }
+
+    private func unavailablePlaybackNote(_ source: NativePlayableSource) -> some View {
+        Text(source.note ?? L10n.nativeFallbackNote)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.orange.opacity(0.08))
+            )
+    }
+
     private var playerHeader: some View {
         VStack(alignment: .leading, spacing: 10) {
             BiliSectionHeader(
@@ -113,7 +155,7 @@ struct NativePlayerView: View {
                 subtitle: L10n.nativeReady
             )
 
-            if let note = viewModel.source?.note {
+            if let source = viewModel.source, let note = source.note, source.mode != .webFallback {
                 Text(note)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -159,11 +201,9 @@ struct NativePlayerView: View {
                         viewModel.isPlaying ? L10n.pausePlayback : L10n.playPlayback,
                         systemImage: viewModel.isPlaying ? "pause.fill" : "play.fill"
                     )
-                    .font(.subheadline.weight(.bold))
-                    .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Color("AccentColor"))
+                .buttonStyle(.plain)
+                .biliPrimaryActionButton()
                 .disabled(viewModel.playerItem == nil)
 
                 transportButton(
@@ -344,10 +384,9 @@ struct NativePlayerView: View {
     private func transportButton(title: String, systemImage: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Label(title, systemImage: systemImage)
-                .font(.subheadline.weight(.semibold))
-                .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.bordered)
+        .buttonStyle(.plain)
+        .biliSecondaryActionButton()
         .disabled(viewModel.playerItem == nil)
     }
 

@@ -103,8 +103,73 @@ struct BiliCardModifier: ViewModifier {
     }
 }
 
+private enum BiliActionButtonVariant {
+    case primary
+    case secondary
+}
+
+private struct BiliActionButtonModifier: ViewModifier {
+    @Environment(\.isEnabled) private var isEnabled
+
+    let variant: BiliActionButtonVariant
+    let fillWidth: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(foregroundColor.opacity(isEnabled ? 1 : 0.7))
+            .frame(maxWidth: fillWidth ? .infinity : nil)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 13)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(backgroundColor.opacity(isEnabled ? 1 : 0.65))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(borderColor.opacity(isEnabled ? 1 : 0.55), lineWidth: 1)
+            )
+            .opacity(isEnabled ? 1 : 0.82)
+    }
+
+    private var foregroundColor: Color {
+        switch variant {
+        case .primary:
+            return .white
+        case .secondary:
+            return Color("AccentColor")
+        }
+    }
+
+    private var backgroundColor: Color {
+        switch variant {
+        case .primary:
+            return Color("AccentColor")
+        case .secondary:
+            return Color(.secondarySystemBackground)
+        }
+    }
+
+    private var borderColor: Color {
+        switch variant {
+        case .primary:
+            return Color("AccentColor").opacity(0.18)
+        case .secondary:
+            return Color("AccentColor").opacity(0.16)
+        }
+    }
+}
+
 extension View {
     func biliCardStyle() -> some View {
         modifier(BiliCardModifier())
+    }
+
+    func biliPrimaryActionButton(fillWidth: Bool = true) -> some View {
+        modifier(BiliActionButtonModifier(variant: .primary, fillWidth: fillWidth))
+    }
+
+    func biliSecondaryActionButton(fillWidth: Bool = true) -> some View {
+        modifier(BiliActionButtonModifier(variant: .secondary, fillWidth: fillWidth))
     }
 }

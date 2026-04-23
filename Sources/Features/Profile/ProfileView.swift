@@ -112,8 +112,8 @@ struct ProfileView: View {
                     await viewModel.refreshFromCurrentCookieStorage()
                 }
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Color("AccentColor"))
+            .buttonStyle(.plain)
+            .biliPrimaryActionButton(fillWidth: false)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(18)
@@ -290,8 +290,8 @@ struct ProfileView: View {
             Button(L10n.loadMore) {
                 Task { await viewModel.loadMoreFavoriteFolders() }
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Color("AccentColor"))
+            .buttonStyle(.plain)
+            .biliPrimaryActionButton(fillWidth: false)
             .frame(maxWidth: .infinity, alignment: .center)
         }
     }
@@ -309,13 +309,14 @@ struct ProfileView: View {
                 Button(L10n.pasteCookieAgain) {
                     isPresentingCookieEditor = true
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Color("AccentColor"))
+                .buttonStyle(.plain)
+                .biliPrimaryActionButton()
 
                 Button(L10n.clearLoginState) {
                     viewModel.clearCookie()
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.plain)
+                .biliSecondaryActionButton()
             }
         }
         .padding(18)
@@ -343,13 +344,14 @@ struct ProfileView: View {
                 Button(L10n.webLoginTitle) {
                     isPresentingWebLogin = true
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Color("AccentColor"))
+                .buttonStyle(.plain)
+                .biliPrimaryActionButton()
 
                 Button("\u{7c98}\u{8d34} Cookie") {
                     isPresentingCookieEditor = true
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.plain)
+                .biliSecondaryActionButton()
             }
         }
         .padding(18)

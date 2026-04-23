@@ -107,13 +107,6 @@ final class VideoDetailViewModel: ObservableObject {
         }
     }
 
-    func webPlayURL(for page: VideoDetailPage?) -> URL? {
-        let bvid = detail?.bvid ?? seedVideo.bvid
-        guard !bvid.isEmpty else { return nil }
-        let pageIndex = page?.page ?? 1
-        return URL(string: "https://www.bilibili.com/video/\(bvid)?p=\(pageIndex)")
-    }
-
     func currentPlayableVideo(page: VideoDetailPage?) -> VideoSummary {
         VideoSummary(
             aid: detail?.aid ?? seedVideo.aid,

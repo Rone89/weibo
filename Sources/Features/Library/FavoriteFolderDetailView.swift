@@ -117,8 +117,8 @@ struct FavoriteFolderDetailView: View {
             Button(L10n.loadMore) {
                 Task { await viewModel.loadMore() }
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Color("AccentColor"))
+            .buttonStyle(.plain)
+            .biliPrimaryActionButton(fillWidth: false)
             .frame(maxWidth: .infinity, alignment: .center)
         }
     }

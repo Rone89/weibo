@@ -4,7 +4,6 @@ struct VideoDetailView: View {
     @StateObject var viewModel: VideoDetailViewModel
     @ObservedObject private var playbackProgressStore = PlaybackProgressStore.shared
     @State private var selectedPage: VideoDetailPage?
-    @State private var isPresentingWebPlayer = false
     @State private var isPresentingFavoritePicker = false
 
     init(viewModel: VideoDetailViewModel) {
@@ -14,6 +13,7 @@ struct VideoDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
+                playerPanel
                 headerCard
 
                 if let errorMessage = viewModel.errorMessage {
@@ -25,7 +25,6 @@ struct VideoDetailView: View {
                 }
 
                 creatorCard
-                playbackPanel
                 actionPanel
 
                 if let detail = viewModel.detail, !detail.pages.isEmpty {
@@ -102,13 +101,6 @@ struct VideoDetailView: View {
         .refreshable {
             await viewModel.reload()
         }
-        .sheet(isPresented: $isPresentingWebPlayer) {
-            if let url = viewModel.webPlayURL(for: selectedPage) {
-                NavigationStack {
-                    WebVideoPlayerScreen(url: url)
-                }
-            }
-        }
         .sheet(isPresented: $isPresentingFavoritePicker) {
             FavoritePickerSheet(
                 folders: viewModel.favoriteFolders,
@@ -149,6 +141,12 @@ struct VideoDetailView: View {
         viewModel.currentPlayableVideo(page: selectedPage)
     }
 
+    private var playerReloadKey: String {
+        let bvid = viewModel.detail?.bvid ?? viewModel.seedVideo.bvid
+        let cid = selectedPage?.cid ?? viewModel.detail?.pages.first?.cid ?? viewModel.seedVideo.cid ?? 0
+        return "\(bvid)-\(cid)"
+    }
+
     private var currentResumeRecord: PlaybackProgressRecord? {
         if selectedPage != nil {
             return playbackProgressStore.progress(for: currentPlayableVideo, page: selectedPage)
@@ -159,6 +157,40 @@ struct VideoDetailView: View {
                 bvid: viewModel.detail?.bvid ?? viewModel.seedVideo.bvid,
                 pages: viewModel.detail?.pages ?? []
             )
+    }
+
+    private var playerPanel: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if let record = currentResumeRecord {
+                HStack(spacing: 10) {
+                    BiliMetricPill(
+                        text: L10n.watchedPrefix(BiliFormatting.duration(Int(record.progressSeconds.rounded()))),
+                        systemImage: "play.circle.fill"
+                    )
+                    BiliMetricPill(
+                        text: BiliFormatting.relativeDate(record.updatedAt),
+                        systemImage: "clock"
+                    )
+                }
+                .padding(.horizontal, 4)
+            }
+
+            if currentPlayableVideo.cid != nil {
+                NativePlayerView(
+                    displayMode: .embedded,
+                    apiClient: viewModel.apiClient,
+                    video: currentPlayableVideo,
+                    selectedPage: selectedPage,
+                    initialSeekSeconds: currentResumeRecord?.progressSeconds
+                )
+                .id(playerReloadKey)
+            } else {
+                ProgressView(L10n.nativePlayerResolving)
+                    .frame(maxWidth: .infinity, minHeight: 220)
+                    .padding(.vertical, 16)
+                    .biliCardStyle()
+            }
+        }
     }
 
     private var headerCard: some View {
@@ -258,82 +290,6 @@ struct VideoDetailView: View {
         .biliCardStyle()
     }
 
-    private var playbackPanel: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            BiliSectionHeader(
-                title: L10n.playbackPanelTitle,
-                subtitle: currentResumeRecord == nil ? L10n.detailActionsSubtitle : L10n.resumeProgressSubtitle
-            )
-
-            if let record = currentResumeRecord {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 10) {
-                        BiliMetricPill(
-                            text: L10n.watchedPrefix(BiliFormatting.duration(Int(record.progressSeconds.rounded()))),
-                            systemImage: "play.circle.fill"
-                        )
-                        BiliMetricPill(
-                            text: BiliFormatting.relativeDate(record.updatedAt),
-                            systemImage: "clock"
-                        )
-                    }
-
-                    if let partTitle = record.partTitle, !partTitle.isEmpty {
-                        Text(partTitle)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(14)
-                .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(Color("AccentColor").opacity(0.08))
-                )
-            }
-
-            HStack(spacing: 12) {
-                NavigationLink {
-                    NativePlayerView(
-                        apiClient: viewModel.apiClient,
-                        video: currentPlayableVideo,
-                        selectedPage: selectedPage,
-                        initialSeekSeconds: currentResumeRecord?.progressSeconds
-                    )
-                } label: {
-                    Label(currentResumeRecord == nil ? L10n.nativePlay : L10n.continuePlayback, systemImage: "play.circle.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(Color("AccentColor"))
-
-                Button {
-                    isPresentingWebPlayer = true
-                } label: {
-                    Label(L10n.webPlay, systemImage: "safari")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-            }
-
-            if currentResumeRecord != nil {
-                NavigationLink {
-                    NativePlayerView(
-                        apiClient: viewModel.apiClient,
-                        video: currentPlayableVideo,
-                        selectedPage: selectedPage,
-                        initialSeekSeconds: 0
-                    )
-                } label: {
-                    Label(L10n.playFromBeginning, systemImage: "backward.end.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-            }
-        }
-        .padding(18)
-        .biliCardStyle()
-    }
-
     private var actionPanel: some View {
         VStack(alignment: .leading, spacing: 14) {
             BiliSectionHeader(title: L10n.actionPanelTitle, subtitle: L10n.actionPanelSubtitle)
@@ -343,17 +299,17 @@ struct VideoDetailView: View {
                     Task { await viewModel.addToWatchLater() }
                 } label: {
                     Label(L10n.addWatchLater, systemImage: "bookmark")
-                        .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.plain)
+                .biliSecondaryActionButton()
 
                 Button {
                     isPresentingFavoritePicker = true
                 } label: {
                     Label(L10n.addFavorite, systemImage: "star")
-                        .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.plain)
+                .biliPrimaryActionButton()
             }
         }
         .padding(18)
@@ -394,7 +350,8 @@ private struct FavoritePickerSheet: View {
                             .foregroundStyle(.secondary)
 
                         Button(L10n.favoritePickerLoadAction, action: onLoad)
-                            .buttonStyle(.borderedProminent)
+                            .buttonStyle(.plain)
+                            .biliPrimaryActionButton(fillWidth: false)
                     }
                     .padding(.vertical, 8)
                 } else {

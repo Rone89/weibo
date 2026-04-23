@@ -36,8 +36,5 @@ struct RootTabView: View {
             .tag(RootTab.profile)
         }
         .tint(Color("AccentColor"))
-        .toolbarBackground(.visible, for: .tabBar)
-        .toolbarBackground(Color(.systemBackground), for: .tabBar)
-        .toolbarColorScheme(.light, for: .tabBar)
     }
 }
