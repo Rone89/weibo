@@ -18,12 +18,26 @@ enum L10n {
     static let loadingMore = "\u{6b63}\u{5728}\u{52a0}\u{8f7d}\u{66f4}\u{591a}..."
     static let searchPlaceholderDefault = "\u{641c}\u{7d22}\u{89c6}\u{9891}\u{3001}UP \u{4e3b}\u{3001}\u{756a}\u{5267}"
 
-    static let webLoginTitle = "\u{7f51}\u{9875}\u{767b}\u{5f55}"
+    static let webLoginTitle = "\u{767b}\u{5f55}\u{8fc1}\u{79fb}"
+    static let qrLoginTabTitle = "\u{626b}\u{7801}\u{767b}\u{5f55}"
+    static let browserLoginTabTitle = "\u{7f51}\u{9875}\u{767b}\u{5f55}"
     static let close = "\u{5173}\u{95ed}"
     static let save = "\u{4fdd}\u{5b58}"
     static let `import` = "\u{5bfc}\u{5165}"
     static let webLoginHint = "\u{8bf7}\u{5148}\u{5728}\u{7f51}\u{9875}\u{4e2d}\u{5b8c}\u{6210}\u{767b}\u{5f55}\u{ff0c}\u{7136}\u{540e}\u{70b9}\u{51fb}\u{53f3}\u{4e0a}\u{89d2}\u{5bfc}\u{5165} Cookie\u{3002}"
     static let webLoginMissingCookie = "\u{6682}\u{672a}\u{68c0}\u{6d4b}\u{5230}\u{767b}\u{5f55} Cookie\u{ff0c}\u{8bf7}\u{786e}\u{8ba4}\u{7f51}\u{9875}\u{767b}\u{5f55}\u{5df2}\u{5b8c}\u{6210}\u{3002}"
+    static let qrLoginHint = "\u{8bf7}\u{4f7f}\u{7528} bilibili \u{5b98}\u{65b9} App \u{626b}\u{63cf}\u{4e0b}\u{65b9}\u{4e8c}\u{7ef4}\u{7801}\u{5b8c}\u{6210}\u{767b}\u{5f55}\u{3002}"
+    static let qrLoginGenerating = "\u{6b63}\u{5728}\u{751f}\u{6210}\u{626b}\u{7801}\u{767b}\u{5f55}\u{4e8c}\u{7ef4}\u{7801}..."
+    static let qrLoginRefresh = "\u{5237}\u{65b0}\u{4e8c}\u{7ef4}\u{7801}"
+    static let qrLoginStatusWaiting = "\u{7b49}\u{5f85}\u{626b}\u{7801}"
+    static let qrLoginStatusScanned = "\u{5df2}\u{626b}\u{7801}\u{ff0c}\u{7b49}\u{5f85}\u{5728} App \u{5185}\u{786e}\u{8ba4}"
+    static let qrLoginStatusSuccess = "\u{626b}\u{7801}\u{6210}\u{529f}\u{ff0c}\u{6b63}\u{5728}\u{5bfc}\u{5165}\u{767b}\u{5f55}\u{72b6}\u{6001}..."
+    static let qrLoginExpired = "\u{4e8c}\u{7ef4}\u{7801}\u{5df2}\u{8fc7}\u{671f}\u{ff0c}\u{8bf7}\u{5237}\u{65b0}\u{540e}\u{91cd}\u{8bd5}\u{3002}"
+    static let qrLoginBackgroundActive = "\u{5e94}\u{7528}\u{5df2}\u{5207}\u{5230}\u{540e}\u{53f0}\u{ff0c}\u{5c06}\u{5728} iOS \u{5141}\u{8bb8}\u{7684}\u{80cc}\u{666f}\u{65f6}\u{95f4}\u{5185}\u{7ee7}\u{7eed}\u{8f6e}\u{8be2}\u{3002}"
+    static let qrLoginBackgroundExpired = "\u{540e}\u{53f0}\u{8f6e}\u{8be2}\u{65f6}\u{95f4}\u{5df2}\u{7528}\u{5c3d}\u{ff0c}\u{8fd4}\u{56de}\u{524d}\u{53f0}\u{540e}\u{4f1a}\u{81ea}\u{52a8}\u{7ee7}\u{7eed}\u{3002}"
+    static let qrLoginOpenInAppHint = "\u{5982}\u{679c}\u{5f53}\u{524d}\u{8bbe}\u{5907}\u{4e0a}\u{5df2}\u{5b89}\u{88c5} bilibili \u{5b98}\u{65b9} App\u{ff0c}\u{53ef}\u{4ee5}\u{622a}\u{56fe}\u{6216}\u{7528}\u{5176}\u{4ed6}\u{5df2}\u{767b}\u{5f55}\u{8bbe}\u{5907}\u{626b}\u{63cf}\u{3002}"
+    static let qrLoginCountdownPrefix = "\u{5269}\u{4f59}\u{6709}\u{6548}\u{65f6}\u{95f4}"
+    static let qrLoginCookieMissing = "\u{626b}\u{7801}\u{6210}\u{529f}\u{4f46}\u{672a}\u{62ff}\u{5230} Cookie \u{4fe1}\u{606f}\u{ff0c}\u{8bf7}\u{91cd}\u{65b0}\u{5237}\u{65b0}\u{4e8c}\u{7ef4}\u{7801}\u{3002}"
 
     static let historyTitle = "\u{5386}\u{53f2}\u{8bb0}\u{5f55}"
     static let historyLoading = "\u{6b63}\u{5728}\u{52a0}\u{8f7d}\u{5386}\u{53f2}\u{8bb0}\u{5f55}..."
@@ -74,11 +88,11 @@ enum L10n {
     static let commonActions = "\u{5e38}\u{7528}\u{529f}\u{80fd}"
     static let cookieImport = "Cookie \u{5bfc}\u{5165}"
     static let migrationInfoTitle = "\u{8fc1}\u{79fb}\u{8bf4}\u{660e}"
-    static let migrationInfoText = "\u{5f53}\u{524d}\u{7248}\u{672c}\u{5df2}\u{5b8c}\u{6210}\u{8d26}\u{53f7}\u{4fe1}\u{606f}\u{3001}\u{5386}\u{53f2}\u{8bb0}\u{5f55}\u{3001}\u{7a0d}\u{540e}\u{518d}\u{770b}\u{3001}\u{6536}\u{85cf}\u{5939}\u{8be6}\u{60c5}\u{548c}\u{89c6}\u{9891}\u{8be6}\u{60c5}\u{7684}\u{539f}\u{751f}\u{8fc1}\u{79fb}\u{3002}\u{767b}\u{5f55}\u{652f}\u{6301}\u{624b}\u{52a8}\u{7c98}\u{8d34} Cookie\u{ff0c}\u{4e5f}\u{652f}\u{6301}\u{5728}\u{5185}\u{5d4c}\u{7f51}\u{9875}\u{767b}\u{5f55}\u{540e}\u{5bfc}\u{5165}\u{3002}"
+    static let migrationInfoText = "\u{5f53}\u{524d}\u{7248}\u{672c}\u{5df2}\u{5b8c}\u{6210}\u{8d26}\u{53f7}\u{4fe1}\u{606f}\u{3001}\u{5386}\u{53f2}\u{8bb0}\u{5f55}\u{3001}\u{7a0d}\u{540e}\u{518d}\u{770b}\u{3001}\u{6536}\u{85cf}\u{5939}\u{8be6}\u{60c5}\u{548c}\u{89c6}\u{9891}\u{8be6}\u{60c5}\u{7684}\u{539f}\u{751f}\u{8fc1}\u{79fb}\u{3002}\u{767b}\u{5f55}\u{652f}\u{6301}\u{626b}\u{7801}\u{3001}\u{624b}\u{52a8}\u{7c98}\u{8d34} Cookie\u{ff0c}\u{4e5f}\u{652f}\u{6301}\u{5728}\u{5185}\u{5d4c}\u{7f51}\u{9875}\u{767b}\u{5f55}\u{540e}\u{5bfc}\u{5165}\u{3002}"
     static let pasteCookieAgain = "\u{91cd}\u{65b0}\u{7c98}\u{8d34} Cookie"
     static let clearLoginState = "\u{6e05}\u{9664}\u{767b}\u{5f55}\u{6001}"
     static let loginGuideTitle = "\u{5bfc}\u{5165}\u{767b}\u{5f55}\u{6001}"
-    static let loginGuideText = "\u{4e3a}\u{4e86}\u{52a0}\u{5feb} iOS \u{539f}\u{751f}\u{91cd}\u{5199}\u{ff0c}\u{8fd9}\u{4e2a}\u{7248}\u{672c}\u{5148}\u{652f}\u{6301}\u{4e24}\u{79cd}\u{767b}\u{5f55}\u{65b9}\u{5f0f}\u{ff1a}1. \u{76f4}\u{63a5}\u{7c98}\u{8d34}\u{6d4f}\u{89c8}\u{5668} Cookie\u{ff1b}2. \u{5728}\u{5185}\u{5d4c}\u{7f51}\u{9875}\u{767b}\u{5f55}\u{540e}\u{81ea}\u{52a8}\u{5bfc}\u{5165}\u{3002}"
+    static let loginGuideText = "\u{4e3a}\u{4e86}\u{52a0}\u{5feb} iOS \u{539f}\u{751f}\u{91cd}\u{5199}\u{ff0c}\u{8fd9}\u{4e2a}\u{7248}\u{672c}\u{5148}\u{652f}\u{6301}\u{4e09}\u{79cd}\u{767b}\u{5f55}\u{65b9}\u{5f0f}\u{ff1a}1. \u{4f7f}\u{7528} bilibili App \u{626b}\u{7801}\u{767b}\u{5f55}\u{ff1b}2. \u{76f4}\u{63a5}\u{7c98}\u{8d34}\u{6d4f}\u{89c8}\u{5668} Cookie\u{ff1b}3. \u{5728}\u{5185}\u{5d4c}\u{7f51}\u{9875}\u{767b}\u{5f55}\u{540e}\u{81ea}\u{52a8}\u{5bfc}\u{5165}\u{3002}"
     static let suggestInclude = "\u{5efa}\u{8bae}\u{81f3}\u{5c11}\u{5305}\u{542b}"
     static let cookieEditorHint = "\u{652f}\u{6301}\u{76f4}\u{63a5}\u{7c98}\u{8d34}\u{6d4f}\u{89c8}\u{5668}\u{4e2d}\u{7684}\u{6574}\u{6bb5} Cookie Header\u{3002}"
     static let cookieEditorTitle = "\u{5bfc}\u{5165} Cookie"
@@ -282,5 +296,13 @@ enum L10n {
 
     static func recommendedKeywordSubtitle(_ count: Int) -> String {
         "\(count) \u{4e2a}\u{63a8}\u{8350}\u{8bcd}"
+    }
+
+    static func qrLoginCountdown(_ seconds: Int) -> String {
+        "\(qrLoginCountdownPrefix) \(max(0, seconds)) \u{79d2}"
+    }
+
+    static var qrLoginBackgroundCapability: String {
+        "\u{5f53} App \u{5207}\u{5230}\u{540e}\u{53f0}\u{65f6}\u{ff0c}\u{767b}\u{5f55}\u{8f6e}\u{8be2}\u{4f1a}\u{5728} iOS \u{5141}\u{8bb8}\u{7684}\u{540e}\u{53f0}\u{65f6}\u{95f4}\u{5185}\u{7ee7}\u{7eed}\u{8fd0}\u{884c}\u{ff1b}\u{5982}\u{679c}\u{7cfb}\u{7edf}\u{63d0}\u{524d}\u{6682}\u{505c}\u{540e}\u{53f0}\u{4efb}\u{52a1}\u{ff0c}\u{56de}\u{5230}\u{524d}\u{53f0}\u{540e}\u{4f1a}\u{81ea}\u{52a8}\u{7eed}\u{8dd1}\u{3002}"
     }
 }

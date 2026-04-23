@@ -3,22 +3,47 @@ import WebKit
 
 struct WebLoginView: View {
     @Environment(\.dismiss) private var dismiss
+    private enum LoginMode: String, CaseIterable, Identifiable {
+        case qr
+        case browser
 
+        var id: String { rawValue }
+    }
+
+    let apiClient: BiliAPIClient
     let onImportCookie: (String) -> Void
 
+    @State private var mode: LoginMode = .qr
     @State private var isImporting = false
     @State private var statusText = L10n.webLoginHint
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                WebLoginBrowser()
-                Text(statusText)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.secondarySystemBackground))
+                Picker("Login Mode", selection: $mode) {
+                    Text(L10n.qrLoginTabTitle).tag(LoginMode.qr)
+                    Text(L10n.browserLoginTabTitle).tag(LoginMode.browser)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+
+                if mode == .qr {
+                    QRCodeLoginPane(apiClient: apiClient) { rawCookie in
+                        onImportCookie(rawCookie)
+                        dismiss()
+                    }
+                } else {
+                    VStack(spacing: 0) {
+                        WebLoginBrowser()
+                        Text(statusText)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(.secondarySystemBackground))
+                    }
+                }
             }
             .navigationTitle(L10n.webLoginTitle)
             .navigationBarTitleDisplayMode(.inline)
@@ -29,15 +54,17 @@ struct WebLoginView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    if isImporting {
-                        ProgressView()
-                    } else {
-                        Button(L10n.import) {
-                            Task {
-                                await importCookie()
+                    if mode == .browser {
+                        if isImporting {
+                            ProgressView()
+                        } else {
+                            Button(L10n.import) {
+                                Task {
+                                    await importCookie()
+                                }
                             }
+                            .fontWeight(.semibold)
                         }
-                        .fontWeight(.semibold)
                     }
                 }
             }

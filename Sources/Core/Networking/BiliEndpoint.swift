@@ -21,6 +21,9 @@ enum BiliEndpoint {
     static let searchTrending = "/main/hotword"
     static let searchRecommend = "/x/v2/search/recommend"
 
+    static let qrCodeAuthCode = "/x/passport-tv-login/qrcode/auth_code"
+    static let qrCodePoll = "/x/passport-tv-login/qrcode/poll"
+
     static let userFavoriteFolders = "/x/v3/fav/folder/created/list"
     static let userFavoriteFoldersAll = "/x/v3/fav/folder/created/list-all"
     static let favoriteFolderDetail = "/x/v3/fav/resource/list"

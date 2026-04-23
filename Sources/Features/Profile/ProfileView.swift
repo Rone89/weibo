@@ -82,7 +82,7 @@ struct ProfileView: View {
                 )
             }
             .sheet(isPresented: $isPresentingWebLogin) {
-                WebLoginView { rawCookie in
+                WebLoginView(apiClient: viewModel.apiClient) { rawCookie in
                     Task { await viewModel.saveCookie(rawCookie) }
                 }
             }
