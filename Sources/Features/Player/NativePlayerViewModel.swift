@@ -33,6 +33,8 @@ final class NativePlayerViewModel: ObservableObject {
     private let danmakuLaneCount = 4
     private let progressStore: PlaybackProgressStore
     private var lastPersistedBucket = -1
+    private var qualityHydrationTask: Task<Void, Never>?
+    private var danmakuTask: Task<Void, Never>?
 
     init(
         apiClient: BiliAPIClient,
@@ -46,7 +48,7 @@ final class NativePlayerViewModel: ObservableObject {
         self.selectedPage = selectedPage
         self.initialSeekSeconds = initialSeekSeconds
         self.progressStore = progressStore
-        self.player.automaticallyWaitsToMinimizeStalling = true
+        self.player.automaticallyWaitsToMinimizeStalling = false
         self.player.allowsExternalPlayback = true
     }
 
@@ -75,12 +77,14 @@ final class NativePlayerViewModel: ObservableObject {
     }
 
     func load() async {
+        qualityHydrationTask?.cancel()
+        danmakuTask?.cancel()
         isLoading = true
         errorMessage = nil
         totalDurationSeconds = TimeInterval(selectedPage?.duration ?? video.duration ?? 0)
 
         do {
-            let playable = try await resolvePlayableSource(preferredQuality: selectedQuality)
+            let playable = try await resolveBootstrapSource(preferredQuality: selectedQuality)
             source = playable
 
             if let option = try await resolveInitialQuality(from: playable) {
@@ -93,13 +97,22 @@ final class NativePlayerViewModel: ObservableObject {
                 selectedQualityID = nil
             }
 
-            await loadDanmakuIfNeeded()
             startObservingPlaybackTime()
+            isLoading = false
+
+            danmakuTask = Task { [weak self] in
+                guard let self else { return }
+                await self.loadDanmakuIfNeeded()
+            }
+
+            qualityHydrationTask = Task { [weak self] in
+                guard let self else { return }
+                await self.hydrateQualityOptions(preferredQuality: self.selectedQuality)
+            }
         } catch {
             errorMessage = error.localizedDescription
+            isLoading = false
         }
-
-        isLoading = false
     }
 
     func togglePlayback() {
@@ -181,6 +194,10 @@ final class NativePlayerViewModel: ObservableObject {
     }
 
     func stop() {
+        qualityHydrationTask?.cancel()
+        qualityHydrationTask = nil
+        danmakuTask?.cancel()
+        danmakuTask = nil
         persistPlaybackProgress(force: true)
         player.pause()
         clearPlayerItemObservers()
@@ -199,6 +216,71 @@ final class NativePlayerViewModel: ObservableObject {
         overlayDanmaku = []
     }
 
+    private func resolveBootstrapSource(preferredQuality: Int?) async throws -> NativePlayableSource {
+        guard let cid = selectedPage?.cid ?? video.cid else {
+            throw APIError.server("\u{7f3a}\u{5c11} cid\u{ff0c}\u{65e0}\u{6cd5}\u{89e3}\u{6790}\u{64ad}\u{653e}\u{5730}\u{5740}\u{3002}")
+        }
+
+        let requestedQn = preferredQuality ?? 80
+        guard let webURL = URL(string: "https://www.bilibili.com/video/\(video.bvid)?p=\(selectedPage?.page ?? 1)") else {
+            throw APIError.invalidURL
+        }
+
+        let directData = try await apiClient.requestEnvelopeData(
+            path: BiliEndpoint.videoPlayURL,
+            query: [
+                "avid": video.aid.map(String.init) ?? "",
+                "bvid": video.bvid,
+                "cid": "\(cid)",
+                "qn": "\(requestedQn)",
+                "fnval": "0",
+                "fnver": "0",
+                "fourk": "1",
+                "voice_balance": "1",
+                "gaia_source": "pre-load",
+                "isGaiaAvoided": "true",
+                "web_location": "1315873"
+            ].filter { !$0.value.isEmpty },
+            headers: [
+                "Referer": "\(BiliBaseURL.web)/",
+                "Origin": BiliBaseURL.web
+            ],
+            signedByWBI: true
+        )
+
+        if let durl = JSONValue.dictionaries(directData["durl"]).first,
+           let urlString = JSONValue.string(durl["url"]),
+           let url = URL(string: urlString.normalizedBiliURLString) {
+            let qn = JSONValue.int(directData["quality"]) ?? requestedQn
+            let label = ((directData["accept_description"] as? [String])?.first).flatMap { $0.isEmpty ? nil : $0 } ?? "QN \(qn)"
+            let directOption = PlaybackQualityOption(
+                qn: qn,
+                label: label,
+                detail: L10n.playerFastStartBadge,
+                mode: .direct,
+                resolution: nil,
+                bitrate: nil,
+                codecs: nil,
+                frameRate: nil,
+                dynamicRange: nil,
+                videoURL: url,
+                audioURL: nil
+            )
+
+            return NativePlayableSource(
+                title: video.title,
+                mode: .direct,
+                fallbackWebURL: webURL,
+                note: L10n.nativeDirectNote,
+                qualityOptions: [directOption],
+                defaultQuality: directOption,
+                currentQualityLabel: directOption.label
+            )
+        }
+
+        return try await resolvePlayableSource(preferredQuality: preferredQuality)
+    }
+
     private func resolvePlayableSource(preferredQuality: Int?) async throws -> NativePlayableSource {
         guard let cid = selectedPage?.cid ?? video.cid else {
             throw APIError.server("\u{7f3a}\u{5c11} cid\u{ff0c}\u{65e0}\u{6cd5}\u{89e3}\u{6790}\u{64ad}\u{653e}\u{5730}\u{5740}\u{3002}")
@@ -213,7 +295,7 @@ final class NativePlayerViewModel: ObservableObject {
             "Origin": BiliBaseURL.web
         ]
 
-        let dashData = try await apiClient.requestEnvelopeData(
+        async let dashDataTask = apiClient.requestEnvelopeData(
             path: BiliEndpoint.videoPlayURL,
             query: [
                 "avid": video.aid.map(String.init) ?? "",
@@ -232,7 +314,7 @@ final class NativePlayerViewModel: ObservableObject {
             signedByWBI: true
         )
 
-        let directData = try await apiClient.requestEnvelopeData(
+        async let directDataTask = apiClient.requestEnvelopeData(
             path: BiliEndpoint.videoPlayURL,
             query: [
                 "avid": video.aid.map(String.init) ?? "",
@@ -250,6 +332,8 @@ final class NativePlayerViewModel: ObservableObject {
             headers: playbackHeaders,
             signedByWBI: true
         )
+
+        let (dashData, directData) = try await (dashDataTask, directDataTask)
 
         let qualityOptions = buildQualityOptions(dashData: dashData, directData: directData, preferredQuality: requestedQn)
 
@@ -390,6 +474,29 @@ final class NativePlayerViewModel: ObservableObject {
             options.first(where: { $0.mode == .direct }) ??
             options.first(where: { $0.qn == preferredQuality }) ??
             options.first
+    }
+
+    private func hydrateQualityOptions(preferredQuality: Int?) async {
+        do {
+            let fullSource = try await resolvePlayableSource(preferredQuality: preferredQuality)
+            guard !Task.isCancelled else { return }
+            guard fullSource.mode != .webFallback else { return }
+
+            let currentMode: PlaybackQualityOption.StreamMode = source?.mode == .direct ? .direct : .composite
+            let resolvedCurrentOption =
+                fullSource.qualityOptions.first(where: { $0.id == selectedQualityID }) ??
+                fullSource.qualityOptions.first(where: { $0.qn == selectedQuality && $0.mode == currentMode }) ??
+                fullSource.qualityOptions.first(where: { $0.qn == selectedQuality }) ??
+                fullSource.defaultQuality
+
+            guard let resolvedCurrentOption else { return }
+
+            source = makeSource(from: fullSource, selectedOption: resolvedCurrentOption)
+            selectedQuality = resolvedCurrentOption.qn
+            selectedQualityID = resolvedCurrentOption.id
+        } catch {
+            // Keep the fast-start stream when richer metadata hydration fails.
+        }
     }
 
     private func applyQuality(_ option: PlaybackQualityOption, preserveTime: Bool, autoplay: Bool) async throws {
@@ -802,10 +909,17 @@ final class NativePlayerViewModel: ObservableObject {
             guard try await asset.load(.isPlayable) else {
                 throw APIError.server(L10n.nativeStreamUnavailable)
             }
-            return AVPlayerItem(asset: asset)
+            let item = AVPlayerItem(asset: asset)
+            item.preferredForwardBufferDuration = 1.5
+            return item
         case .composite:
-            return try await makeCompositeItem(videoURL: option.videoURL, audioURL: option.audioURL) ??
-                AVPlayerItem(asset: makeMediaAsset(url: option.videoURL))
+            if let item = try await makeCompositeItem(videoURL: option.videoURL, audioURL: option.audioURL) {
+                item.preferredForwardBufferDuration = 1.5
+                return item
+            }
+            let fallbackItem = AVPlayerItem(asset: makeMediaAsset(url: option.videoURL))
+            fallbackItem.preferredForwardBufferDuration = 1.5
+            return fallbackItem
         }
     }
 

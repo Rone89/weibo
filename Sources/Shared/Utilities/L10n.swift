@@ -236,6 +236,7 @@ enum L10n {
     static let dynamicQuotedTitle = "\u{539f}\u{52a8}\u{6001}"
     static let playerOverviewTitle = "\u{64ad}\u{653e}\u{6982}\u{89c8}"
     static let playerOverviewSubtitle = "\u{7528}\u{66f4}\u{8f7b}\u{677e}\u{7684}\u{65b9}\u{5f0f}\u{770b}\u{6e05}\u{5f53}\u{524d}\u{5185}\u{5bb9}\u{548c}\u{5feb}\u{901f}\u{5b9a}\u{4f4d}"
+    static let playerFastStartBadge = "\u{5feb}\u{901f}\u{8d77}\u{64ad}"
     static let playerRestart = "\u{56de}\u{5230}\u{5f00}\u{5934}"
     static let playerQuarter = "25%"
     static let playerHalf = "50%"

@@ -314,16 +314,18 @@ struct ProfileView: View {
                     .buttonStyle(.plain)
                 }
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 14) {
-                        ForEach(Array(viewModel.favoriteFolders.dropFirst(viewModel.favoriteFolders.isEmpty ? 0 : 1))) { folder in
-                            NavigationLink(value: folder) {
-                                ProfileFavoriteFolderCard(folder: folder)
+                if viewModel.favoriteFolders.count > 1 {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 14) {
+                            ForEach(Array(viewModel.favoriteFolders.dropFirst())) { folder in
+                                NavigationLink(value: folder) {
+                                    ProfileFavoriteFolderCard(folder: folder)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
+                        .padding(.vertical, 2)
                     }
-                    .padding(.vertical, 2)
                 }
 
                 favoriteLoadMoreSection

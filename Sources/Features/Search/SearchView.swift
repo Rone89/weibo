@@ -190,12 +190,14 @@ struct SearchView: View {
                     .buttonStyle(.plain)
                 }
 
-                LazyVStack(spacing: 14) {
-                    ForEach(Array(viewModel.results.dropFirst(viewModel.results.isEmpty ? 0 : 1))) { video in
-                        NavigationLink(value: video) {
-                            VideoRow(video: video)
+                if viewModel.results.count > 1 {
+                    LazyVStack(spacing: 14) {
+                        ForEach(Array(viewModel.results.dropFirst())) { video in
+                            NavigationLink(value: video) {
+                                VideoRow(video: video)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
 

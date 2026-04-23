@@ -11,9 +11,9 @@ struct BiliBackground<Content: View>: View {
         ZStack {
             LinearGradient(
                 colors: [
-                    Color(red: 0.99, green: 0.97, blue: 0.99),
-                    Color(red: 0.96, green: 0.98, blue: 1.0),
-                    Color(red: 1.0, green: 0.99, blue: 0.97)
+                    Color(red: 0.97, green: 0.96, blue: 0.98),
+                    Color(red: 0.93, green: 0.96, blue: 0.99),
+                    Color(red: 0.96, green: 0.96, blue: 0.95)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -21,21 +21,21 @@ struct BiliBackground<Content: View>: View {
             .ignoresSafeArea()
 
             Circle()
-                .fill(Color("AccentColor").opacity(0.18))
+                .fill(Color("AccentColor").opacity(0.12))
                 .frame(width: 260, height: 260)
-                .blur(radius: 34)
+                .blur(radius: 40)
                 .offset(x: -150, y: -250)
 
             Circle()
-                .fill(Color.orange.opacity(0.12))
+                .fill(Color.orange.opacity(0.08))
                 .frame(width: 240, height: 240)
-                .blur(radius: 28)
+                .blur(radius: 34)
                 .offset(x: 160, y: -160)
 
             RoundedRectangle(cornerRadius: 120, style: .continuous)
-                .fill(Color.white.opacity(0.32))
+                .fill(Color.white.opacity(0.18))
                 .frame(width: 360, height: 160)
-                .blur(radius: 20)
+                .blur(radius: 28)
                 .offset(x: 100, y: 320)
 
             content
@@ -93,11 +93,11 @@ struct BiliMetricPill: View {
             .padding(.vertical, 8)
             .background(
                 Capsule()
-                    .fill(tint.opacity(0.12))
+                    .fill(tint.opacity(0.1))
             )
             .overlay(
                 Capsule()
-                    .stroke(.white.opacity(0.75), lineWidth: 1)
+                    .stroke(Color.black.opacity(0.05), lineWidth: 0.8)
             )
     }
 }
@@ -135,13 +135,13 @@ struct BiliSymbolOrb: View {
             .frame(width: size, height: size)
             .background(
                 Circle()
-                    .fill(.white.opacity(0.56))
+                    .fill(Color(.systemBackground).opacity(0.72))
             )
             .overlay(
                 Circle()
-                    .stroke(.white.opacity(0.78), lineWidth: 1)
+                    .stroke(Color.black.opacity(0.05), lineWidth: 0.8)
             )
-            .shadow(color: Color.black.opacity(0.06), radius: 10, x: 0, y: 4)
+            .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
             .modifier(BiliGlassSurfaceModifier(cornerRadius: size / 2, tint: tint, interactive: true))
     }
 }
@@ -197,10 +197,10 @@ private struct BiliGlassSurfaceModifier: ViewModifier {
         if #available(iOS 26.0, *) {
             if interactive {
                 content
-                    .glassEffect(.regular.tint(tint.opacity(0.12)).interactive(), in: .rect(cornerRadius: cornerRadius))
+                    .glassEffect(.regular.tint(tint.opacity(0.08)).interactive(), in: .rect(cornerRadius: cornerRadius))
             } else {
                 content
-                    .glassEffect(.regular.tint(tint.opacity(0.12)), in: .rect(cornerRadius: cornerRadius))
+                    .glassEffect(.regular.tint(tint.opacity(0.08)), in: .rect(cornerRadius: cornerRadius))
             }
         } else {
             content
@@ -218,24 +218,24 @@ struct BiliCardModifier: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
             content
-                .background(.white.opacity(0.001))
+                .background(Color(.systemBackground).opacity(0.001))
                 .modifier(BiliGlassSurfaceModifier(cornerRadius: cornerRadius, tint: tint, interactive: interactive))
                 .overlay(
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .stroke(.white.opacity(0.5), lineWidth: 1)
+                        .stroke(Color.black.opacity(0.05), lineWidth: 0.8)
                 )
-                .shadow(color: Color.black.opacity(shadowOpacity), radius: 16, x: 0, y: 10)
+                .shadow(color: Color.black.opacity(shadowOpacity * 0.9), radius: 14, x: 0, y: 8)
         } else {
             content
                 .background(
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(.white.opacity(0.82))
+                        .fill(Color(.systemBackground).opacity(0.78))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .stroke(.white.opacity(0.65), lineWidth: 1)
+                        .stroke(Color.black.opacity(0.05), lineWidth: 0.8)
                 )
-                .shadow(color: Color.black.opacity(shadowOpacity), radius: 18, x: 0, y: 10)
+                .shadow(color: Color.black.opacity(shadowOpacity * 0.9), radius: 14, x: 0, y: 8)
         }
     }
 }

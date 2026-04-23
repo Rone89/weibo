@@ -1,4 +1,4 @@
-import AVKit
+import AVFoundation
 import MediaPlayer
 import SwiftUI
 import UIKit
@@ -539,6 +539,7 @@ private struct InteractivePlayerSurface: View {
     struct GestureHUD: Equatable {
         let icon: String
         let text: String
+        let level: Double?
     }
 
     @ObservedObject var viewModel: NativePlayerViewModel
@@ -558,7 +559,7 @@ private struct InteractivePlayerSurface: View {
     var body: some View {
         GeometryReader { proxy in
             ZStack {
-                VideoPlayer(player: viewModel.player)
+                PlayerCanvasView(player: viewModel.player)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.black)
 
@@ -582,7 +583,7 @@ private struct InteractivePlayerSurface: View {
             }
             .background(Color.black)
             .contentShape(Rectangle())
-            .simultaneousGesture(dragGesture(in: proxy.size))
+            .highPriorityGesture(dragGesture(in: proxy.size))
             .onTapGesture {
                 toggleControls()
             }
@@ -777,21 +778,24 @@ private struct InteractivePlayerSurface: View {
                     pendingSeekTime = target
                     gestureHUD = GestureHUD(
                         icon: "arrow.left.and.right.circle.fill",
-                        text: "\(L10n.gestureSeekTo) \(clockText(target))"
+                        text: "\(L10n.gestureSeekTo) \(clockText(target))",
+                        level: target / max(viewModel.totalDurationSeconds, target > 0 ? target : 1)
                     )
                 case .brightness:
                     let level = min(max(dragStartBrightness - (value.translation.height / max(size.height, 1)), 0), 1)
                     UIScreen.main.brightness = level
                     gestureHUD = GestureHUD(
                         icon: "sun.max.fill",
-                        text: "\(L10n.gestureBrightness) \(Int((level * 100).rounded()))%"
+                        text: "\(L10n.gestureBrightness) \(Int((level * 100).rounded()))%",
+                        level: level
                     )
                 case .volume:
                     let level = min(max(dragStartVolume - Float(value.translation.height / max(size.height, 1)), 0), 1)
                     systemVolumeController.setVolume(level)
                     gestureHUD = GestureHUD(
                         icon: "speaker.wave.2.fill",
-                        text: "\(L10n.gestureVolume) \(Int((level * 100).rounded()))%"
+                        text: "\(L10n.gestureVolume) \(Int((level * 100).rounded()))%",
+                        level: Double(level)
                     )
                 case nil:
                     break
@@ -812,7 +816,11 @@ private struct InteractivePlayerSurface: View {
     private func handleDoubleTapSeek(delta: TimeInterval, icon: String, text: String) {
         guard viewModel.playerItem != nil else { return }
         viewModel.seek(by: delta)
-        gestureHUD = GestureHUD(icon: icon, text: text)
+        gestureHUD = GestureHUD(
+            icon: icon,
+            text: text,
+            level: viewModel.totalDurationSeconds > 0 ? viewModel.currentPlaybackSeconds / viewModel.totalDurationSeconds : nil
+        )
         dismissGestureHUDSoon()
         scheduleAutoHideIfNeeded()
     }
@@ -853,6 +861,18 @@ private struct InteractivePlayerSurface: View {
             Text(hud.text)
                 .font(.subheadline.weight(.semibold))
                 .multilineTextAlignment(.center)
+            if let level = hud.level {
+                GeometryReader { proxy in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(.white.opacity(0.18))
+                        Capsule()
+                            .fill(.white.opacity(0.92))
+                            .frame(width: max(8, proxy.size.width * CGFloat(min(max(level, 0), 1))))
+                    }
+                }
+                .frame(width: 120, height: 4)
+            }
         }
         .foregroundStyle(.white)
         .padding(.horizontal, 18)
@@ -920,6 +940,34 @@ private struct HiddenSystemVolumeView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: MPVolumeView, context: Context) {}
+}
+
+private struct PlayerCanvasView: UIViewRepresentable {
+    let player: AVPlayer
+
+    func makeUIView(context: Context) -> PlayerCanvasUIView {
+        let view = PlayerCanvasUIView()
+        view.playerLayer.videoGravity = .resizeAspect
+        view.playerLayer.player = player
+        return view
+    }
+
+    func updateUIView(_ uiView: PlayerCanvasUIView, context: Context) {
+        uiView.playerLayer.player = player
+    }
+}
+
+private final class PlayerCanvasUIView: UIView {
+    override static var layerClass: AnyClass {
+        AVPlayerLayer.self
+    }
+
+    var playerLayer: AVPlayerLayer {
+        guard let layer = layer as? AVPlayerLayer else {
+            fatalError("Expected AVPlayerLayer backing layer")
+        }
+        return layer
+    }
 }
 
 private final class SystemVolumeController: ObservableObject {
