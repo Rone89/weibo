@@ -124,4 +124,5 @@ final class HistoryViewModel: ObservableObject {
         nextCursorMax = last.cursorMax
         nextCursorViewAt = last.cursorViewAt
     }
+
 }

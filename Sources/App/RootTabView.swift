@@ -5,7 +5,7 @@ struct RootTabView: View {
         case home
         case search
         case dynamic
-        case library
+        case history
         case profile
     }
 
@@ -18,7 +18,7 @@ struct RootTabView: View {
                 apiClient: appEnvironment.apiClient,
                 onTapSearch: { selection = .search },
                 onTapDynamic: { selection = .dynamic },
-                onTapLibrary: { selection = .library },
+                onTapHistory: { selection = .history },
                 onTapProfile: { selection = .profile }
             )
             .tabItem {
@@ -42,16 +42,13 @@ struct RootTabView: View {
             }
             .tag(RootTab.dynamic)
 
-            LibraryHubView(
-                apiClient: appEnvironment.apiClient,
-                sessionStore: appEnvironment.sessionStore,
-                onTapSearch: { selection = .search },
-                onTapProfile: { selection = .profile }
-            )
-            .tabItem {
-                Label(L10n.tabLibrary, systemImage: "play.square.stack.fill")
+            NavigationStack {
+                HistoryView(apiClient: appEnvironment.apiClient)
             }
-            .tag(RootTab.library)
+                .tabItem {
+                    Label(L10n.historyTitle, systemImage: "clock.arrow.circlepath")
+                }
+            .tag(RootTab.history)
 
             ProfileView(
                 apiClient: appEnvironment.apiClient,

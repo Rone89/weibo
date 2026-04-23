@@ -60,11 +60,17 @@ struct VideoRow: View {
 
     private func miniStat(text: String, icon: String) -> some View {
         Label(text, systemImage: icon)
+            .font(.caption.weight(.semibold))
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(
                 Capsule()
-                    .fill(Color(.secondarySystemBackground))
+                    .fill(Color(.systemBackground).opacity(0.72))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(Color.black.opacity(0.05), lineWidth: 0.8)
             )
     }
+
 }

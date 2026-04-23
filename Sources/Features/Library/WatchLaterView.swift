@@ -2,6 +2,7 @@ import SwiftUI
 
 struct WatchLaterView: View {
     @StateObject private var viewModel: WatchLaterViewModel
+    @ObservedObject private var playbackProgressStore = PlaybackProgressStore.shared
     @State private var isPresentingClearConfirmation = false
 
     init(apiClient: BiliAPIClient) {
@@ -51,6 +52,14 @@ struct WatchLaterView: View {
                                         Text(L10n.watchedPrefix(BiliFormatting.duration(progress)))
                                             .font(.caption)
                                             .foregroundStyle(Color("AccentColor"))
+                                    }
+                                    if resumeRecord(for: entry) != nil {
+                                        NavigationLink(value: entry.video) {
+                                            Text(L10n.continuePlayback)
+                                                .font(.caption.weight(.semibold))
+                                                .foregroundStyle(Color("AccentColor"))
+                                        }
+                                        .buttonStyle(.plain)
                                     }
                                     Spacer()
                                     Button(L10n.remove) {
@@ -116,5 +125,9 @@ struct WatchLaterView: View {
             .biliPrimaryActionButton(fillWidth: false)
             .frame(maxWidth: .infinity, alignment: .center)
         }
+    }
+
+    private func resumeRecord(for entry: WatchLaterEntry) -> PlaybackProgressRecord? {
+        playbackProgressStore.progress(for: entry.video, page: nil)
     }
 }

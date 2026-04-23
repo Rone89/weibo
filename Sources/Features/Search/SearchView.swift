@@ -349,7 +349,7 @@ struct SearchView: View {
                 )
                 .overlay(
                     Capsule()
-                        .stroke(.white.opacity(0.72), lineWidth: 1)
+                        .stroke(Color.black.opacity(0.05), lineWidth: 0.8)
                 )
             }
             .buttonStyle(.plain)
@@ -373,6 +373,7 @@ struct SearchView: View {
         .prefix(6)
         .map { $0 }
     }
+
 }
 
 private struct SearchBestMatchCard: View {

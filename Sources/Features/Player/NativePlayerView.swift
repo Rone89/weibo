@@ -2,6 +2,7 @@ import AVFoundation
 import MediaPlayer
 import SwiftUI
 import UIKit
+import WebKit
 
 struct NativePlayerView: View {
     enum DisplayMode {
@@ -9,11 +10,42 @@ struct NativePlayerView: View {
         case embedded
     }
 
+    private enum PlaybackSurfaceMode: String, CaseIterable, Identifiable {
+        case native
+        case compatibility
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .native:
+                return L10n.playerModeNative
+            case .compatibility:
+                return L10n.playerModeCompatibility
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .native:
+                return "play.tv.fill"
+            case .compatibility:
+                return "safari.fill"
+            }
+        }
+    }
+
+    private enum PreferenceKeys {
+        static let playbackSurfaceMode = "player.preference.surfaceMode.v1"
+    }
+
     @StateObject private var viewModel: NativePlayerViewModel
     let displayMode: DisplayMode
     @State private var scrubPosition: Double = 0
     @State private var isScrubbing = false
     @State private var isPresentingFullscreen = false
+    @State private var isPresentingCompatibilityPlayer = false
+    @State private var preferredSurfaceMode: PlaybackSurfaceMode
 
     init(
         displayMode: DisplayMode = .standalone,
@@ -23,6 +55,7 @@ struct NativePlayerView: View {
         initialSeekSeconds: TimeInterval? = nil
     ) {
         self.displayMode = displayMode
+        _preferredSurfaceMode = State(initialValue: Self.loadPreferredSurfaceMode())
         _viewModel = StateObject(
             wrappedValue: NativePlayerViewModel(
                 apiClient: apiClient,
@@ -43,15 +76,21 @@ struct NativePlayerView: View {
             }
         }
         .overlay {
-            if viewModel.isLoading {
+            if viewModel.isLoading && preferredSurfaceMode == .native {
                 ProgressView(L10n.nativePlayerResolving)
                     .padding(18)
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
         }
-        .task {
-            await viewModel.load()
-            scrubPosition = viewModel.currentPlaybackSeconds
+        .task(id: preferredSurfaceMode) {
+            switch preferredSurfaceMode {
+            case .native:
+                await viewModel.load()
+                scrubPosition = viewModel.currentPlaybackSeconds
+            case .compatibility:
+                viewModel.stop()
+                scrubPosition = 0
+            }
         }
         .onDisappear {
             viewModel.stop()
@@ -69,6 +108,9 @@ struct NativePlayerView: View {
                 viewModel: viewModel,
                 isPresented: $isPresentingFullscreen
             )
+        }
+        .sheet(isPresented: $isPresentingCompatibilityPlayer) {
+            CompatibilityWebPlayerSheet(url: compatibilityURL)
         }
     }
 
@@ -100,13 +142,20 @@ struct NativePlayerView: View {
     }
 
     private var playerArea: some View {
-        InteractivePlayerSurface(
-            viewModel: viewModel,
-            isFullscreen: false,
-            onToggleFullscreen: {
-                isPresentingFullscreen = true
+        Group {
+            switch preferredSurfaceMode {
+            case .native:
+                InteractivePlayerSurface(
+                    viewModel: viewModel,
+                    isFullscreen: false,
+                    onToggleFullscreen: {
+                        isPresentingFullscreen = true
+                    }
+                )
+            case .compatibility:
+                compatibilityPreviewCard
             }
-        )
+        }
         .frame(height: 260)
     }
 
@@ -114,22 +163,27 @@ struct NativePlayerView: View {
         VStack(alignment: .leading, spacing: 16) {
             playerHeader
             playbackOverviewSection
-            transportSection
 
-            if !viewModel.qualityOptions.isEmpty {
-                qualitySection
-            }
+            if preferredSurfaceMode == .native {
+                transportSection
 
-            danmakuSection
+                if !viewModel.qualityOptions.isEmpty {
+                    qualitySection
+                }
 
-            if let errorMessage = viewModel.errorMessage {
-                Text(errorMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-            }
+                danmakuSection
 
-            if let source = viewModel.source, source.mode == .webFallback {
-                unavailablePlaybackNote(source)
+                if let errorMessage = viewModel.errorMessage {
+                    Text(errorMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
+
+                if let source = viewModel.source, source.mode == .webFallback {
+                    unavailablePlaybackNote(source)
+                }
+            } else {
+                compatibilityModeSection
             }
         }
         .padding(18)
@@ -153,30 +207,145 @@ struct NativePlayerView: View {
         VStack(alignment: .leading, spacing: 10) {
             BiliSectionHeader(
                 title: viewModel.source?.title ?? L10n.nativePlayerTitle,
-                subtitle: L10n.nativeReady
+                subtitle: preferredSurfaceMode == .native ? L10n.nativeReady : L10n.playerCompatibilityModeHint
             )
 
-            if let source = viewModel.source, let note = source.note, source.mode != .webFallback {
+            if preferredSurfaceMode == .native,
+               let source = viewModel.source,
+               let note = source.note,
+               source.mode != .webFallback {
                 Text(note)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else if preferredSurfaceMode == .compatibility {
+                Text(L10n.nativePlayerCompatibilitySubtitle)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
 
+            BiliGlassGroup(spacing: 10) {
+                HStack(spacing: 10) {
+                    ForEach(PlaybackSurfaceMode.allCases) { mode in
+                        modeChip(for: mode)
+                    }
+                }
+            }
+
             HStack(spacing: 10) {
-                BiliMetricPill(
-                    text: L10n.qualityCount(viewModel.qualityOptions.count),
-                    systemImage: "rectangle.compress.vertical"
-                )
-                BiliMetricPill(
-                    text: L10n.danmakuCount(viewModel.danmakuItems.count),
-                    systemImage: "text.bubble"
-                )
-                if let source = viewModel.source, source.mode != .webFallback {
+                if preferredSurfaceMode == .native {
                     BiliMetricPill(
-                        text: source.mode == .composite ? L10n.qualityStreamDash : L10n.qualityStreamDirect,
-                        systemImage: source.mode == .composite ? "waveform.path.ecg.rectangle" : "link"
+                        text: L10n.qualityCount(viewModel.qualityOptions.count),
+                        systemImage: "rectangle.compress.vertical"
+                    )
+                    BiliMetricPill(
+                        text: L10n.danmakuCount(viewModel.danmakuItems.count),
+                        systemImage: "text.bubble"
+                    )
+                    if let source = viewModel.source, source.mode != .webFallback {
+                        BiliMetricPill(
+                            text: source.mode == .composite ? L10n.qualityStreamDash : L10n.qualityStreamDirect,
+                            systemImage: source.mode == .composite ? "waveform.path.ecg.rectangle" : "link"
+                        )
+                    }
+                } else {
+                    BiliMetricPill(
+                        text: L10n.playerModeCompatibility,
+                        systemImage: "safari.fill",
+                        tint: .blue
+                    )
+                    BiliMetricPill(
+                        text: L10n.playerModeRemembered,
+                        systemImage: "checkmark.circle.fill",
+                        tint: .teal
                     )
                 }
+            }
+
+            Button {
+                setPreferredSurfaceMode(.compatibility, userInitiated: true)
+            } label: {
+                Label(
+                    preferredSurfaceMode == .compatibility ? L10n.playerOpenCompatibility : L10n.nativePlayerWebFallback,
+                    systemImage: "safari"
+                )
+            }
+            .buttonStyle(.plain)
+            .biliSecondaryActionButton(fillWidth: false)
+        }
+    }
+
+    private var compatibilityPreviewCard: some View {
+        ZStack(alignment: .bottomLeading) {
+            AsyncPosterImage(urlString: viewModel.video.coverURL, width: nil, height: 260)
+                .frame(maxWidth: .infinity)
+
+            LinearGradient(
+                colors: [.clear, .black.opacity(0.76)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 12) {
+                BiliMetricPill(
+                    text: L10n.playerModeCompatibility,
+                    systemImage: "safari.fill",
+                    tint: .white,
+                    foreground: .white
+                )
+
+                Text(viewModel.video.title)
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+
+                Text(L10n.playerCompatibilityModeHint)
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.84))
+                    .lineLimit(2)
+
+                Button {
+                    openCompatibilityPlayer()
+                } label: {
+                    Label(L10n.playerOpenCompatibility, systemImage: "safari.fill")
+                }
+                .buttonStyle(.plain)
+                .biliPrimaryActionButton(fillWidth: false)
+            }
+            .padding(20)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .biliCardStyle(cornerRadius: 28, tint: .blue.opacity(0.24), interactive: true)
+    }
+
+    private var compatibilityModeSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            BiliSectionHeader(
+                title: L10n.playerModeTitle,
+                subtitle: L10n.playerModeSubtitle
+            )
+
+            Text(L10n.playerCompatibilityModeBody)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 10) {
+                Button {
+                    openCompatibilityPlayer()
+                } label: {
+                    Label(L10n.playerOpenCompatibility, systemImage: "safari.fill")
+                }
+                .buttonStyle(.plain)
+                .biliPrimaryActionButton(fillWidth: false)
+
+                Button {
+                    setPreferredSurfaceMode(.native, userInitiated: true)
+                } label: {
+                    Label(L10n.playerSwitchToNative, systemImage: "play.tv.fill")
+                }
+                .buttonStyle(.plain)
+                .biliSecondaryActionButton(fillWidth: false)
             }
         }
     }
@@ -502,6 +671,58 @@ struct NativePlayerView: View {
             (L10n.playerAlmostDone, max(duration - 15, duration * 0.9))
         ]
     }
+
+    private var compatibilityURL: URL {
+        viewModel.source?.fallbackWebURL ?? URL(string: "https://www.bilibili.com/video/\(viewModel.video.bvid)")!
+    }
+
+    private func modeChip(for mode: PlaybackSurfaceMode) -> some View {
+        Button {
+            setPreferredSurfaceMode(mode, userInitiated: true)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: mode.systemImage)
+                Text(mode.title)
+                    .lineLimit(1)
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(preferredSurfaceMode == mode ? .white : .primary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .background(
+                Capsule()
+                    .fill(preferredSurfaceMode == mode ? Color("AccentColor") : Color(.systemBackground).opacity(0.72))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(Color.black.opacity(preferredSurfaceMode == mode ? 0.0 : 0.05), lineWidth: 0.8)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func setPreferredSurfaceMode(_ mode: PlaybackSurfaceMode, userInitiated: Bool) {
+        if preferredSurfaceMode != mode {
+            preferredSurfaceMode = mode
+            UserDefaults.standard.set(mode.rawValue, forKey: PreferenceKeys.playbackSurfaceMode)
+        }
+
+        if mode == .compatibility && userInitiated {
+            openCompatibilityPlayer()
+        }
+    }
+
+    private func openCompatibilityPlayer() {
+        isPresentingCompatibilityPlayer = true
+    }
+
+    private static func loadPreferredSurfaceMode(defaults: UserDefaults = .standard) -> PlaybackSurfaceMode {
+        guard let rawValue = defaults.string(forKey: PreferenceKeys.playbackSurfaceMode),
+              let mode = PlaybackSurfaceMode(rawValue: rawValue) else {
+            return .native
+        }
+        return mode
+    }
 }
 
 private struct NativePlayerFullscreenView: View {
@@ -512,7 +733,7 @@ private struct NativePlayerFullscreenView: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            VStack(spacing: 0) {
+            VStack(spacing: 16) {
                 Spacer(minLength: 0)
                 InteractivePlayerSurface(
                     viewModel: viewModel,
@@ -522,10 +743,73 @@ private struct NativePlayerFullscreenView: View {
                     }
                 )
                 .aspectRatio(16 / 9, contentMode: .fit)
+
+                fullscreenInfoBar
+                    .padding(.horizontal, 16)
+
                 Spacer(minLength: 0)
             }
         }
         .statusBarHidden(true)
+    }
+
+    private var fullscreenInfoBar: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(viewModel.video.title)
+                .font(.headline.weight(.bold))
+                .foregroundStyle(.white)
+                .lineLimit(2)
+
+            if let note = viewModel.source?.note, !note.isEmpty {
+                Text(note)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.78))
+                    .lineLimit(2)
+            } else {
+                Text(L10n.playerGestureHint)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.78))
+                    .lineLimit(2)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    fullscreenPill(viewModel.video.authorName, systemImage: "person.fill")
+
+                    if let selectedPage = viewModel.selectedPage {
+                        fullscreenPill(
+                            L10n.pageTitle(page: selectedPage.page, part: selectedPage.part),
+                            systemImage: "list.number"
+                        )
+                    }
+
+                    if let quality = viewModel.source?.currentQualityLabel, !quality.isEmpty {
+                        fullscreenPill(quality, systemImage: "sparkles.tv")
+                    }
+
+                    fullscreenPill(viewModel.playbackRateLabel, systemImage: "speedometer")
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(.white.opacity(0.08))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(.white.opacity(0.08), lineWidth: 0.8)
+        )
+    }
+
+    private func fullscreenPill(_ text: String, systemImage: String) -> some View {
+        Label(text, systemImage: systemImage)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(.white.opacity(0.12), in: Capsule())
     }
 }
 
@@ -590,7 +874,18 @@ private struct InteractivePlayerSurface: View {
         }
         .modifier(PlayerSurfaceStyle(isFullscreen: isFullscreen))
         .onAppear {
+            areControlsVisible = true
             scheduleAutoHideIfNeeded()
+        }
+        .onChange(of: viewModel.isPlaying) { isPlaying in
+            if isPlaying {
+                scheduleAutoHideIfNeeded()
+            } else {
+                hideControlsTask?.cancel()
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    areControlsVisible = true
+                }
+            }
         }
         .onDisappear {
             hideControlsTask?.cancel()
@@ -954,6 +1249,64 @@ private struct PlayerCanvasView: UIViewRepresentable {
 
     func updateUIView(_ uiView: PlayerCanvasUIView, context: Context) {
         uiView.playerLayer.player = player
+    }
+}
+
+private struct CompatibilityWebPlayerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let url: URL
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                Text(L10n.nativePlayerCompatibilitySubtitle)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(.secondarySystemBackground))
+
+                CompatibleWebPlayer(url: url)
+                    .ignoresSafeArea(edges: .bottom)
+            }
+            .navigationTitle(L10n.nativePlayerWebFallback)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(L10n.close) {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct CompatibleWebPlayer: UIViewRepresentable {
+    let url: URL
+
+    func makeUIView(context: Context) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .default()
+        configuration.defaultWebpagePreferences.allowsContentJavaScript = true
+
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.customUserAgent = BiliAPIClient.userAgent
+        webView.scrollView.contentInsetAdjustmentBehavior = .never
+
+        var request = URLRequest(url: url)
+        request.setValue(BiliAPIClient.userAgent, forHTTPHeaderField: "User-Agent")
+        webView.load(request)
+        return webView
+    }
+
+    func updateUIView(_ uiView: WKWebView, context: Context) {
+        guard uiView.url != url else { return }
+        var request = URLRequest(url: url)
+        request.setValue(BiliAPIClient.userAgent, forHTTPHeaderField: "User-Agent")
+        uiView.load(request)
     }
 }
 

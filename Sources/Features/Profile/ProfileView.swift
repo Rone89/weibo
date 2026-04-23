@@ -23,7 +23,6 @@ struct ProfileView: View {
                             sessionInsightSection
                             quickSummary
                             actionGrid
-                            favoriteSection
                             loginSyncSection
                             migrationSection
                         } else if !viewModel.isLoading {
@@ -88,9 +87,6 @@ struct ProfileView: View {
             }
             .refreshable {
                 await viewModel.reload()
-            }
-            .navigationDestination(for: FavoriteFolder.self) { folder in
-                FavoriteFolderDetailView(apiClient: viewModel.apiClient, folder: folder)
             }
             .navigationDestination(for: VideoSummary.self) { video in
                 VideoDetailView(viewModel: VideoDetailViewModel(apiClient: viewModel.apiClient, seedVideo: video))
@@ -193,7 +189,7 @@ struct ProfileView: View {
 
             HStack(spacing: 10) {
                 BiliMetricPill(text: L10n.profileSyncStatus, systemImage: "person.badge.shield.checkmark")
-                BiliMetricPill(text: L10n.migrationInfoTitle, systemImage: "square.and.arrow.down")
+                BiliMetricPill(text: L10n.historyTitle, systemImage: "clock.arrow.circlepath", tint: .orange)
             }
         }
         .padding(20)
@@ -201,10 +197,35 @@ struct ProfileView: View {
     }
 
     private var quickSummary: some View {
-        HStack(spacing: 12) {
-            summaryCard(title: L10n.following, value: BiliFormatting.compactCount(viewModel.stat?.followingCount))
-            summaryCard(title: L10n.followers, value: BiliFormatting.compactCount(viewModel.stat?.followerCount))
-            summaryCard(title: L10n.dynamic, value: BiliFormatting.compactCount(viewModel.stat?.dynamicCount))
+        VStack(alignment: .leading, spacing: 14) {
+            BiliSectionHeader(title: L10n.profileFocusTitle, subtitle: L10n.profileFocusSubtitle)
+
+            LazyVGrid(columns: actionColumns, spacing: 12) {
+                summaryCard(
+                    title: L10n.profileFocusSessionTitle,
+                    value: viewModel.hasSession ? L10n.libraryLoggedInBadge : L10n.notLoggedIn,
+                    systemImage: "person.badge.key.fill",
+                    tint: .blue
+                )
+                summaryCard(
+                    title: L10n.historyTitle,
+                    value: viewModel.hasSession ? L10n.libraryReadyBadge : L10n.dynamicSessionHint,
+                    systemImage: "clock.arrow.circlepath",
+                    tint: .teal
+                )
+                summaryCard(
+                    title: L10n.profileSyncStatus,
+                    value: viewModel.hasSession ? L10n.justUpdated : L10n.notLoggedIn,
+                    systemImage: "arrow.triangle.2.circlepath",
+                    tint: .orange
+                )
+                summaryCard(
+                    title: L10n.profileCookieFieldsTitle,
+                    value: L10n.profileCookieFieldCount(cookieFieldReadyCount, total: 3),
+                    systemImage: "key.fill",
+                    tint: .pink
+                )
+            }
         }
     }
 
@@ -229,7 +250,7 @@ struct ProfileView: View {
                 .lineLimit(2)
 
             HStack(spacing: 10) {
-                BiliMetricPill(text: L10n.favoriteFoldersSubtitle(viewModel.favoriteFolders.count), systemImage: "star.fill", tint: .orange)
+                BiliMetricPill(text: L10n.historyTitle, systemImage: "clock.arrow.circlepath", tint: .orange)
                 BiliMetricPill(text: L10n.profileSyncStatus, systemImage: "checkmark.shield")
             }
         }
@@ -254,13 +275,13 @@ struct ProfileView: View {
                 }
                 .buttonStyle(.plain)
 
-                NavigationLink {
-                    WatchLaterView(apiClient: viewModel.apiClient)
+                Button {
+                    Task { await viewModel.refreshFromCurrentCookieStorage() }
                 } label: {
                     BiliQuickActionTile(
-                        title: L10n.watchLaterTitle,
-                        subtitle: L10n.profileWatchLaterSubtitle,
-                        systemImage: "bookmark.fill",
+                        title: L10n.syncNow,
+                        subtitle: L10n.loginSyncSubtitle,
+                        systemImage: "arrow.triangle.2.circlepath",
                         tint: .orange
                     )
                 }
@@ -290,62 +311,6 @@ struct ProfileView: View {
                 }
                 .buttonStyle(.plain)
             }
-        }
-    }
-
-    private var favoriteSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            BiliSectionHeader(
-                title: L10n.favoritesTitle,
-                subtitle: viewModel.favoriteFolders.isEmpty ? L10n.favoritesSubtitle : L10n.favoriteFoldersSubtitle(viewModel.favoriteFolders.count)
-            )
-
-            if viewModel.favoriteFolders.isEmpty && !viewModel.isLoading {
-                EmptyStateView(
-                    title: "\u{6682}\u{65e0}\u{53ef}\u{89c1}\u{6536}\u{85cf}\u{5939}",
-                    subtitle: "\u{5982}\u{679c}\u{8d26}\u{53f7}\u{6ca1}\u{6709}\u{516c}\u{5f00}\u{6536}\u{85cf}\u{5939}\u{ff0c}\u{6216}\u{8005} Cookie \u{6743}\u{9650}\u{4e0d}\u{8db3}\u{ff0c}\u{8fd9}\u{91cc}\u{4f1a}\u{663e}\u{793a}\u{4e3a}\u{7a7a}\u{3002}",
-                    systemImage: "star.square.on.square"
-                )
-            } else {
-                if let spotlightFolder = viewModel.favoriteFolders.first {
-                    NavigationLink(value: spotlightFolder) {
-                        ProfileFavoriteSpotlightCard(folder: spotlightFolder)
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                if viewModel.favoriteFolders.count > 1 {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 14) {
-                            ForEach(Array(viewModel.favoriteFolders.dropFirst())) { folder in
-                                NavigationLink(value: folder) {
-                                    ProfileFavoriteFolderCard(folder: folder)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(.vertical, 2)
-                    }
-                }
-
-                favoriteLoadMoreSection
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var favoriteLoadMoreSection: some View {
-        if viewModel.isLoadingMoreFavoriteFolders {
-            ProgressView(L10n.loadingMore)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.top, 4)
-        } else if viewModel.canLoadMoreFavoriteFolders {
-            Button(L10n.loadMore) {
-                Task { await viewModel.loadMoreFavoriteFolders() }
-            }
-            .buttonStyle(.plain)
-            .biliPrimaryActionButton(fillWidth: false)
-            .frame(maxWidth: .infinity, alignment: .center)
         }
     }
 
@@ -426,6 +391,10 @@ struct ProfileView: View {
         ]
     }
 
+    private var cookieFieldReadyCount: Int {
+        cookieStatusItems.filter(\.isPresent).count
+    }
+
     private var rawCookiePreview: String {
         let trimmed = viewModel.rawCookie.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return L10n.profileCookieEmptyPreview }
@@ -447,17 +416,25 @@ struct ProfileView: View {
             }
     }
 
-    private func summaryCard(title: String, value: String) -> some View {
-        VStack(spacing: 8) {
+    private func summaryCard(title: String, value: String, systemImage: String, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                BiliSymbolOrb(systemImage: systemImage, tint: tint, size: 36)
+                Spacer(minLength: 8)
+            }
+
             Text(value)
-                .font(.title3.weight(.bold))
+                .font(.headline.weight(.bold))
+                .foregroundStyle(.primary)
+                .lineLimit(2)
+
             Text(title)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .biliCardStyle(tint: .white, interactive: true, shadowOpacity: 0.05)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .biliCardStyle(tint: tint.opacity(0.16), interactive: true, shadowOpacity: 0.05)
     }
 
     private func profileBadge(_ text: String) -> some View {
@@ -471,76 +448,6 @@ struct ProfileView: View {
                 Capsule()
                     .stroke(.white.opacity(0.78), lineWidth: 1)
             )
-    }
-}
-
-private struct ProfileFavoriteFolderCard: View {
-    let folder: FavoriteFolder
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            AsyncPosterImage(urlString: folder.coverURL, width: 220, height: 132)
-                .frame(width: 220)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text(folder.title)
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-
-                Text(L10n.mediaCount(folder.mediaCount))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                if let intro = folder.intro, !intro.isEmpty {
-                    Text(intro)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-            }
-            .padding(.horizontal, 4)
-        }
-        .frame(width: 236, alignment: .leading)
-        .padding(12)
-        .biliCardStyle(tint: .orange.opacity(0.24), interactive: true)
-    }
-}
-
-private struct ProfileFavoriteSpotlightCard: View {
-    let folder: FavoriteFolder
-
-    var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            AsyncPosterImage(urlString: folder.coverURL, width: nil, height: 210)
-                .frame(maxWidth: .infinity)
-
-            LinearGradient(
-                colors: [.clear, .black.opacity(0.7)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text(L10n.profileFavoritesSpotlightTitle)
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.white.opacity(0.85))
-
-                Text(folder.title)
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(.white)
-                    .lineLimit(2)
-
-                Text(folder.intro?.isEmpty == false ? folder.intro! : L10n.mediaCount(folder.mediaCount))
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.82))
-                    .lineLimit(2)
-            }
-            .padding(18)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .biliCardStyle(cornerRadius: 28, tint: .orange.opacity(0.28), interactive: true)
     }
 }
 

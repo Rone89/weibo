@@ -5,20 +5,20 @@ struct HomeView: View {
     private let apiClient: BiliAPIClient
     private let onTapSearch: () -> Void
     private let onTapDynamic: () -> Void
-    private let onTapLibrary: () -> Void
+    private let onTapHistory: () -> Void
     private let onTapProfile: () -> Void
 
     init(
         apiClient: BiliAPIClient,
         onTapSearch: @escaping () -> Void,
         onTapDynamic: @escaping () -> Void,
-        onTapLibrary: @escaping () -> Void,
+        onTapHistory: @escaping () -> Void,
         onTapProfile: @escaping () -> Void
     ) {
         self.apiClient = apiClient
         self.onTapSearch = onTapSearch
         self.onTapDynamic = onTapDynamic
-        self.onTapLibrary = onTapLibrary
+        self.onTapHistory = onTapHistory
         self.onTapProfile = onTapProfile
         _viewModel = StateObject(wrappedValue: HomeViewModel(apiClient: apiClient))
     }
@@ -142,8 +142,8 @@ struct HomeView: View {
                 Spacer(minLength: 16)
 
                 HStack(spacing: 10) {
-                    Button(action: onTapLibrary) {
-                        BiliSymbolOrb(systemImage: "play.square.stack")
+                    Button(action: onTapHistory) {
+                        BiliSymbolOrb(systemImage: "clock.arrow.circlepath")
                     }
                     .buttonStyle(.plain)
 
@@ -246,11 +246,11 @@ struct HomeView: View {
                     }
                     .buttonStyle(.plain)
 
-                    Button(action: onTapLibrary) {
+                    Button(action: onTapHistory) {
                         BiliQuickActionTile(
-                            title: L10n.tabLibrary,
-                            subtitle: L10n.homeLibraryActionSubtitle,
-                            systemImage: "play.square.stack.fill",
+                            title: L10n.historyTitle,
+                            subtitle: L10n.homeHistoryActionSubtitle,
+                            systemImage: "clock.arrow.circlepath",
                             tint: .blue
                         )
                         .frame(width: 170)
@@ -358,11 +358,11 @@ struct HomeView: View {
             .padding(.vertical, 12)
             .background(
                 Capsule()
-                    .fill(viewModel.selectedFeed == mode ? Color("AccentColor") : .white.opacity(0.64))
+                    .fill(viewModel.selectedFeed == mode ? Color("AccentColor") : Color(.systemBackground).opacity(0.72))
             )
             .overlay(
                 Capsule()
-                    .stroke(.white.opacity(0.78), lineWidth: 1)
+                    .stroke(Color.black.opacity(viewModel.selectedFeed == mode ? 0.0 : 0.05), lineWidth: 0.8)
             )
         }
         .buttonStyle(.plain)

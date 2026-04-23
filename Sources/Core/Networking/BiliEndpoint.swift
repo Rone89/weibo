@@ -11,7 +11,6 @@ enum BiliBaseURL {
 
 enum BiliEndpoint {
     static let nav = "/x/web-interface/nav"
-    static let navStat = "/x/web-interface/nav/stat"
     static let recommendFeed = "/x/web-interface/wbi/index/top/feed/rcmd"
     static let hotVideos = "/x/web-interface/popular"
 
@@ -47,6 +46,8 @@ enum BiliEndpoint {
     static let replyMain = "/x/v2/reply/main"
     static let replyReplyList = "/x/v2/reply/reply"
     static let replyAdd = "/x/v2/reply/add"
+    static let historyReport = "/x/v2/history/report"
+    static let heartbeat = "/x/click-interface/web/heartbeat"
     static let videoPlayURL = "/x/player/wbi/playurl"
     static let playInfo = "/x/player/wbi/v2"
 

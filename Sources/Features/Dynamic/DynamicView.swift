@@ -133,11 +133,11 @@ struct DynamicView: View {
                     .padding(.vertical, 12)
                     .background(
                         Capsule()
-                            .fill(viewModel.selectedFeed == feed ? Color("AccentColor") : .white.opacity(0.64))
+                            .fill(viewModel.selectedFeed == feed ? Color("AccentColor") : Color(.systemBackground).opacity(0.72))
                     )
                     .overlay(
                         Capsule()
-                            .stroke(.white.opacity(0.78), lineWidth: 1)
+                            .stroke(Color.black.opacity(viewModel.selectedFeed == feed ? 0.0 : 0.05), lineWidth: 0.8)
                     )
                 }
                 .buttonStyle(.plain)
@@ -425,11 +425,11 @@ struct DynamicStatPill: View {
             .padding(.vertical, 8)
             .background(
                 Capsule()
-                    .fill(tint.opacity(0.12))
+                    .fill(tint.opacity(0.1))
             )
             .overlay(
                 Capsule()
-                    .stroke(.white.opacity(0.74), lineWidth: 1)
+                    .stroke(Color.black.opacity(0.05), lineWidth: 0.8)
             )
     }
 }

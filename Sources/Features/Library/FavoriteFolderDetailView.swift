@@ -2,6 +2,7 @@ import SwiftUI
 
 struct FavoriteFolderDetailView: View {
     @StateObject private var viewModel: FavoriteFolderDetailViewModel
+    @ObservedObject private var playbackProgressStore = PlaybackProgressStore.shared
 
     init(apiClient: BiliAPIClient, folder: FavoriteFolder) {
         _viewModel = StateObject(wrappedValue: FavoriteFolderDetailViewModel(apiClient: apiClient, folder: folder))
@@ -52,6 +53,14 @@ struct FavoriteFolderDetailView: View {
                                         Text(BiliFormatting.relativeDate(favoriteTime))
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
+                                    }
+                                    if resumeRecord(for: media) != nil {
+                                        NavigationLink(value: media.video) {
+                                            Text(L10n.continuePlayback)
+                                                .font(.caption.weight(.semibold))
+                                                .foregroundStyle(Color("AccentColor"))
+                                        }
+                                        .buttonStyle(.plain)
                                     }
                                     Spacer()
                                     Button(L10n.removeFromFavorite) {
@@ -121,5 +130,9 @@ struct FavoriteFolderDetailView: View {
             .biliPrimaryActionButton(fillWidth: false)
             .frame(maxWidth: .infinity, alignment: .center)
         }
+    }
+
+    private func resumeRecord(for media: FavoriteMedia) -> PlaybackProgressRecord? {
+        playbackProgressStore.progress(for: media.video, page: nil)
     }
 }

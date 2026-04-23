@@ -4,9 +4,9 @@ import Foundation
 final class VideoDetailViewModel: ObservableObject {
     @Published private(set) var detail: VideoDetail?
     @Published private(set) var relatedVideos: [VideoSummary] = []
-    @Published private(set) var favoriteFolders: [FavoriteFolder] = []
+    @Published private(set) var remoteResumeSeconds: TimeInterval?
+    @Published private(set) var remoteResumeCID: Int?
     @Published private(set) var isLoading = false
-    @Published private(set) var isLoadingFavoriteFolders = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var actionMessage: String?
 
@@ -33,78 +33,22 @@ final class VideoDetailViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         actionMessage = nil
+        remoteResumeSeconds = nil
+        remoteResumeCID = nil
 
         do {
             async let detail = fetchVideoDetail()
             async let related = fetchRelatedVideos()
-            self.detail = try await detail
+            let loadedDetail = try await detail
+            self.detail = loadedDetail
             self.relatedVideos = try await related
+            try? await hydrateRemoteResume(detail: loadedDetail)
             self.hasLoaded = true
         } catch {
             self.errorMessage = error.localizedDescription
         }
 
         isLoading = false
-    }
-
-    func prepareFavoriteFolders() async {
-        guard favoriteFolders.isEmpty else { return }
-        isLoadingFavoriteFolders = true
-        defer { isLoadingFavoriteFolders = false }
-
-        do {
-            let nav = try await apiClient.requestEnvelopeData(path: BiliEndpoint.nav)
-            let mid = JSONValue.int(nav["mid"]) ?? 0
-            favoriteFolders = try await fetchAllFavoriteFolders(mid: mid)
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    func addToWatchLater() async {
-        do {
-            let csrf = try await apiClient.requireCSRFToken()
-            var form: [String: String] = [
-                "csrf": csrf
-            ]
-            if let aid = detail?.aid ?? seedVideo.aid {
-                form["aid"] = "\(aid)"
-            }
-            if !(detail?.bvid ?? seedVideo.bvid).isEmpty {
-                form["bvid"] = detail?.bvid ?? seedVideo.bvid
-            }
-
-            _ = try await apiClient.postEnvelopeValue(
-                path: BiliEndpoint.watchLaterAdd,
-                form: form
-            )
-            actionMessage = L10n.addedWatchLater
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    func addToFavorite(folder: FavoriteFolder) async {
-        guard let aid = detail?.aid ?? seedVideo.aid else {
-            errorMessage = L10n.missingAidForFavorite
-            return
-        }
-
-        do {
-            let csrf = try await apiClient.requireCSRFToken()
-            _ = try await apiClient.postEnvelopeValue(
-                path: BiliEndpoint.favoriteVideoBatchDeal,
-                form: [
-                    "resources": "\(aid):2",
-                    "add_media_ids": "\(folder.id)",
-                    "del_media_ids": "",
-                    "csrf": csrf
-                ]
-            )
-            actionMessage = L10n.addedToFavorite(folder.title)
-        } catch {
-            errorMessage = error.localizedDescription
-        }
     }
 
     func currentPlayableVideo(page: VideoDetailPage?) -> VideoSummary {
@@ -127,6 +71,10 @@ final class VideoDetailViewModel: ObservableObject {
         )
     }
 
+    var hasRemoteResume: Bool {
+        (remoteResumeSeconds ?? 0) > 5
+    }
+
     private func fetchVideoDetail() async throws -> VideoDetail {
         let data = try await apiClient.requestEnvelopeData(
             path: BiliEndpoint.videoDetail,
@@ -143,11 +91,28 @@ final class VideoDetailViewModel: ObservableObject {
         return data.map(VideoSummary.init)
     }
 
-    private func fetchAllFavoriteFolders(mid: Int) async throws -> [FavoriteFolder] {
+    private func hydrateRemoteResume(detail: VideoDetail) async throws {
+        let cid = detail.pages.first?.cid ?? seedVideo.cid
+        guard let cid, cid > 0 else { return }
+
         let data = try await apiClient.requestEnvelopeData(
-            path: BiliEndpoint.userFavoriteFoldersAll,
-            query: ["up_mid": "\(mid)"]
+            path: BiliEndpoint.playInfo,
+            query: [
+                "bvid": detail.bvid.isEmpty ? seedVideo.bvid : detail.bvid,
+                "cid": "\(cid)"
+            ],
+            headers: [
+                "Referer": "\(BiliBaseURL.web)/",
+                "Origin": BiliBaseURL.web
+            ],
+            signedByWBI: true
         )
-        return JSONValue.dictionaries(data["list"]).map(FavoriteFolder.init)
+
+        let lastPlayTime = JSONValue.double(data["last_play_time"]) ?? 0
+        let lastPlayCID = JSONValue.int(data["last_play_cid"]) ?? 0
+        guard lastPlayTime > 5, lastPlayCID > 0 else { return }
+
+        remoteResumeSeconds = lastPlayTime
+        remoteResumeCID = lastPlayCID
     }
 }

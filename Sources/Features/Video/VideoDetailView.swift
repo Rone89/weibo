@@ -2,9 +2,10 @@ import SwiftUI
 
 struct VideoDetailView: View {
     @StateObject var viewModel: VideoDetailViewModel
-    @ObservedObject private var playbackProgressStore = PlaybackProgressStore.shared
     @State private var selectedPage: VideoDetailPage?
-    @State private var isPresentingFavoritePicker = false
+    @State private var playerResetSeed = 0
+    @State private var shouldIgnoreResume = false
+    @State private var isDescriptionExpanded = false
 
     init(viewModel: VideoDetailViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -15,6 +16,7 @@ struct VideoDetailView: View {
             VStack(alignment: .leading, spacing: 18) {
                 playerPanel
                 headerCard
+                overviewSection
 
                 if let errorMessage = viewModel.errorMessage {
                     messageCard(text: errorMessage, tint: .red)
@@ -25,7 +27,9 @@ struct VideoDetailView: View {
                 }
 
                 creatorCard
-                actionPanel
+                if shouldShowRestartAction {
+                    actionPanel
+                }
                 commentsSection
 
                 if let detail = viewModel.detail, !detail.pages.isEmpty {
@@ -33,6 +37,7 @@ struct VideoDetailView: View {
                         VStack(spacing: 10) {
                             ForEach(detail.pages) { page in
                                 Button {
+                                    shouldIgnoreResume = false
                                     selectedPage = page
                                 } label: {
                                     HStack {
@@ -96,23 +101,11 @@ struct VideoDetailView: View {
         .task {
             await viewModel.loadIfNeeded()
             if selectedPage == nil {
-                selectedPage = viewModel.detail?.pages.first
+                selectedPage = preferredInitialPage
             }
         }
         .refreshable {
             await viewModel.reload()
-        }
-        .sheet(isPresented: $isPresentingFavoritePicker) {
-            FavoritePickerSheet(
-                folders: viewModel.favoriteFolders,
-                isLoading: viewModel.isLoadingFavoriteFolders,
-                onSelect: { folder in
-                    Task { await viewModel.addToFavorite(folder: folder) }
-                },
-                onLoad: {
-                    Task { await viewModel.prepareFavoriteFolders() }
-                }
-            )
         }
         .navigationDestination(for: VideoSummary.self) { video in
             VideoDetailView(
@@ -142,6 +135,15 @@ struct VideoDetailView: View {
         viewModel.currentPlayableVideo(page: selectedPage)
     }
 
+    private var preferredInitialPage: VideoDetailPage? {
+        if let remoteCID = viewModel.remoteResumeCID,
+           let remotePage = viewModel.detail?.pages.first(where: { $0.cid == remoteCID }) {
+            return remotePage
+        }
+
+        return viewModel.detail?.pages.first
+    }
+
     private var currentCommentOID: Int? {
         viewModel.detail?.aid ?? viewModel.seedVideo.aid
     }
@@ -149,33 +151,29 @@ struct VideoDetailView: View {
     private var playerReloadKey: String {
         let bvid = viewModel.detail?.bvid ?? viewModel.seedVideo.bvid
         let cid = selectedPage?.cid ?? viewModel.detail?.pages.first?.cid ?? viewModel.seedVideo.cid ?? 0
-        return "\(bvid)-\(cid)"
+        return "\(bvid)-\(cid)-\(playerResetSeed)"
     }
 
-    private var currentResumeRecord: PlaybackProgressRecord? {
-        if selectedPage != nil {
-            return playbackProgressStore.progress(for: currentPlayableVideo, page: selectedPage)
+    private var effectiveInitialSeekSeconds: TimeInterval? {
+        if shouldIgnoreResume {
+            return nil
         }
 
-        return playbackProgressStore.progress(for: currentPlayableVideo, page: selectedPage) ??
-            playbackProgressStore.bestProgress(
-                bvid: viewModel.detail?.bvid ?? viewModel.seedVideo.bvid,
-                pages: viewModel.detail?.pages ?? []
-            )
+        let remoteProgress = selectedPage?.cid == viewModel.remoteResumeCID ? viewModel.remoteResumeSeconds : nil
+        return remoteProgress
     }
 
     private var playerPanel: some View {
         VStack(alignment: .leading, spacing: 14) {
-            if let record = currentResumeRecord {
+            if viewModel.hasRemoteResume {
                 HStack(spacing: 10) {
-                    BiliMetricPill(
-                        text: L10n.watchedPrefix(BiliFormatting.duration(Int(record.progressSeconds.rounded()))),
-                        systemImage: "play.circle.fill"
-                    )
-                    BiliMetricPill(
-                        text: BiliFormatting.relativeDate(record.updatedAt),
-                        systemImage: "clock"
-                    )
+                    if let remoteResumeSeconds = viewModel.remoteResumeSeconds,
+                       selectedPage?.cid == viewModel.remoteResumeCID {
+                        BiliMetricPill(
+                            text: L10n.videoRemoteResume(BiliFormatting.duration(Int(remoteResumeSeconds.rounded()))),
+                            systemImage: "icloud.and.arrow.down"
+                        )
+                    }
                 }
                 .padding(.horizontal, 4)
             }
@@ -186,7 +184,7 @@ struct VideoDetailView: View {
                     apiClient: viewModel.apiClient,
                     video: currentPlayableVideo,
                     selectedPage: selectedPage,
-                    initialSeekSeconds: currentResumeRecord?.progressSeconds
+                    initialSeekSeconds: effectiveInitialSeekSeconds
                 )
                 .id(playerReloadKey)
             } else {
@@ -224,17 +222,68 @@ struct VideoDetailView: View {
                 }
                 .padding(18)
             }
+        }
+        .padding(18)
+        .biliCardStyle()
+    }
 
-            Text(viewModel.detail?.description ?? viewModel.seedVideo.subtitle ?? L10n.noDescription)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+    private var overviewSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            BiliSectionHeader(
+                title: L10n.videoDetailOverviewTitle,
+                subtitle: L10n.videoDetailOverviewSubtitle
+            )
 
-            HStack(spacing: 10) {
-                BiliMetricPill(text: BiliFormatting.compactCount(viewModel.detail?.viewCount ?? viewModel.seedVideo.viewCount), systemImage: "play.fill")
-                BiliMetricPill(text: BiliFormatting.compactCount(viewModel.detail?.danmakuCount ?? viewModel.seedVideo.danmakuCount), systemImage: "text.bubble.fill")
-                BiliMetricPill(text: BiliFormatting.compactCount(viewModel.detail?.likeCount ?? viewModel.seedVideo.likeCount), systemImage: "hand.thumbsup.fill", tint: .orange)
+            LazyVGrid(columns: overviewColumns, spacing: 12) {
+                overviewMetricCard(
+                    title: L10n.videoDetailDurationTitle,
+                    value: BiliFormatting.duration(currentPlayableVideo.duration),
+                    systemImage: "clock.fill",
+                    tint: .blue
+                )
+                overviewMetricCard(
+                    title: L10n.videoDetailPublishedTitle,
+                    value: BiliFormatting.relativeDate(viewModel.detail?.publishDate ?? viewModel.seedVideo.publishDate),
+                    systemImage: "calendar",
+                    tint: .orange
+                )
+                overviewMetricCard(
+                    title: L10n.videoDetailWatchingTitle,
+                    value: remoteWatchingText,
+                    systemImage: "play.circle.fill",
+                    tint: .teal
+                )
+                overviewMetricCard(
+                    title: L10n.videoPages,
+                    value: currentPageOverviewText,
+                    systemImage: "list.number",
+                    tint: .pink
+                )
             }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text(L10n.videoDetailDescriptionTitle)
+                    .font(.subheadline.weight(.semibold))
+
+                Text(descriptionText)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(needsDescriptionExpansion && !isDescriptionExpanded ? 4 : nil)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if needsDescriptionExpansion {
+                    Button(isDescriptionExpanded ? L10n.videoDetailCollapseDescription : L10n.videoDetailExpandDescription) {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                            isDescriptionExpanded.toggle()
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color("AccentColor"))
+                }
+            }
+            .padding(16)
+            .biliCardStyle(cornerRadius: 24, tint: .blue.opacity(0.14), shadowOpacity: 0.03)
         }
         .padding(18)
         .biliCardStyle()
@@ -299,26 +348,32 @@ struct VideoDetailView: View {
         VStack(alignment: .leading, spacing: 14) {
             BiliSectionHeader(title: L10n.actionPanelTitle, subtitle: L10n.actionPanelSubtitle)
 
-            HStack(spacing: 12) {
-                Button {
-                    Task { await viewModel.addToWatchLater() }
-                } label: {
-                    Label(L10n.addWatchLater, systemImage: "bookmark")
+            LazyVGrid(columns: actionColumns, spacing: 12) {
+                if shouldShowRestartAction {
+                    Button {
+                        shouldIgnoreResume = true
+                        playerResetSeed += 1
+                    } label: {
+                        Label(L10n.playFromBeginning, systemImage: "gobackward")
+                    }
+                    .buttonStyle(.plain)
+                    .biliSecondaryActionButton()
                 }
-                .buttonStyle(.plain)
-                .biliSecondaryActionButton()
-
-                Button {
-                    isPresentingFavoritePicker = true
-                } label: {
-                    Label(L10n.addFavorite, systemImage: "star")
-                }
-                .buttonStyle(.plain)
-                .biliPrimaryActionButton()
             }
         }
         .padding(18)
         .biliCardStyle()
+    }
+
+    private var actionColumns: [GridItem] {
+        [
+            GridItem(.flexible(), spacing: 12),
+            GridItem(.flexible(), spacing: 12)
+        ]
+    }
+
+    private var shouldShowRestartAction: Bool {
+        viewModel.hasRemoteResume
     }
 
     private var commentsSection: some View {
@@ -328,6 +383,70 @@ struct VideoDetailView: View {
         )
         .padding(18)
         .biliCardStyle()
+    }
+
+    private var descriptionText: String {
+        let rawText = viewModel.detail?.description ?? viewModel.seedVideo.subtitle ?? L10n.noDescription
+        let normalized = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalized.isEmpty ? L10n.noDescription : normalized
+    }
+
+    private var needsDescriptionExpansion: Bool {
+        descriptionText.count > 120 || descriptionText.filter(\.isNewline).count >= 2
+    }
+
+    private var currentPageOverviewText: String {
+        if let currentPage = selectedPage {
+            return L10n.pageTitle(page: currentPage.page, part: currentPage.part)
+        }
+
+        let pageCount = viewModel.detail?.pages.count ?? 0
+        guard pageCount > 0 else { return L10n.videoDetailSinglePart }
+        return L10n.videoDetailPageCount(pageCount)
+    }
+
+    private var remoteWatchingText: String {
+        guard let remoteResumeSeconds = viewModel.remoteResumeSeconds,
+              remoteResumeSeconds > 5 else {
+            return L10n.videoDetailWatchingEmpty
+        }
+
+        if let selectedPage,
+           let duration = selectedPage.duration,
+           selectedPage.cid == viewModel.remoteResumeCID,
+           duration > 0 {
+            return "\(BiliFormatting.duration(Int(remoteResumeSeconds.rounded()))) / \(BiliFormatting.duration(duration))"
+        }
+
+        return L10n.videoRemoteResume(BiliFormatting.duration(Int(remoteResumeSeconds.rounded())))
+    }
+
+    private var overviewColumns: [GridItem] {
+        [
+            GridItem(.flexible(), spacing: 12),
+            GridItem(.flexible(), spacing: 12)
+        ]
+    }
+
+    private func overviewMetricCard(title: String, value: String, systemImage: String, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                BiliSymbolOrb(systemImage: systemImage, tint: tint, size: 36)
+                Spacer(minLength: 8)
+            }
+
+            Text(value)
+                .font(.headline.weight(.bold))
+                .foregroundStyle(.primary)
+                .lineLimit(2)
+
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .biliCardStyle(cornerRadius: 24, tint: tint.opacity(0.16), interactive: true, shadowOpacity: 0.03)
     }
 
     private func section<Content: View>(title: String, subtitle: String? = nil, @ViewBuilder content: () -> Content) -> some View {

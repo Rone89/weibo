@@ -31,25 +31,41 @@ final class NativePlayerViewModel: ObservableObject {
     private var playerStallObserver: NSObjectProtocol?
     private let danmakuTravelDuration: TimeInterval = 6
     private let danmakuLaneCount = 4
-    private let progressStore: PlaybackProgressStore
-    private var lastPersistedBucket = -1
     private var qualityHydrationTask: Task<Void, Never>?
     private var danmakuTask: Task<Void, Never>?
+    private var lastRemoteHeartbeatBucket = -1
+    private var didReportHistoryEntry = false
+    private let defaults: UserDefaults
+
+    private enum PreferenceKeys {
+        static let playbackRate = "player.preference.playbackRate.v1"
+        static let danmakuOverlay = "player.preference.danmakuOverlay.v1"
+        static let preferredQuality = "player.preference.preferredQuality.v1"
+    }
 
     init(
         apiClient: BiliAPIClient,
         video: VideoSummary,
         selectedPage: VideoDetailPage?,
         initialSeekSeconds: TimeInterval? = nil,
-        progressStore: PlaybackProgressStore = .shared
+        defaults: UserDefaults = .standard
     ) {
         self.apiClient = apiClient
         self.video = video
         self.selectedPage = selectedPage
         self.initialSeekSeconds = initialSeekSeconds
-        self.progressStore = progressStore
+        self.defaults = defaults
         self.player.automaticallyWaitsToMinimizeStalling = false
         self.player.allowsExternalPlayback = true
+        self.playbackRate = Self.normalizedPlaybackRate(
+            Float(defaults.double(forKey: PreferenceKeys.playbackRate))
+        )
+        if defaults.object(forKey: PreferenceKeys.danmakuOverlay) != nil {
+            self.isShowingDanmakuOverlay = defaults.bool(forKey: PreferenceKeys.danmakuOverlay)
+        }
+        if defaults.object(forKey: PreferenceKeys.preferredQuality) != nil {
+            self.selectedQuality = defaults.integer(forKey: PreferenceKeys.preferredQuality)
+        }
     }
 
     var qualityOptions: [PlaybackQualityOption] {
@@ -82,6 +98,8 @@ final class NativePlayerViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         totalDurationSeconds = TimeInterval(selectedPage?.duration ?? video.duration ?? 0)
+        lastRemoteHeartbeatBucket = -1
+        didReportHistoryEntry = false
 
         do {
             let playable = try await resolveBootstrapSource(preferredQuality: selectedQuality)
@@ -109,6 +127,11 @@ final class NativePlayerViewModel: ObservableObject {
                 guard let self else { return }
                 await self.hydrateQualityOptions(preferredQuality: self.selectedQuality)
             }
+
+            Task { [weak self] in
+                guard let self else { return }
+                await self.reportHistoryIfNeeded()
+            }
         } catch {
             errorMessage = error.localizedDescription
             isLoading = false
@@ -121,7 +144,6 @@ final class NativePlayerViewModel: ObservableObject {
         if isPlaying {
             player.pause()
             isPlaying = false
-            persistPlaybackProgress(force: true)
         } else {
             activateAudioSession()
             player.playImmediately(atRate: playbackRate)
@@ -147,16 +169,17 @@ final class NativePlayerViewModel: ObservableObject {
                 guard let self else { return }
                 self.currentPlaybackSeconds = clamped
                 self.updateVisibleDanmaku(at: clamped)
-                self.persistPlaybackProgress(force: true)
             }
         }
     }
 
     func setPlaybackRate(_ rate: Float) {
-        playbackRate = rate
+        let normalizedRate = Self.normalizedPlaybackRate(rate)
+        playbackRate = normalizedRate
+        defaults.set(Double(normalizedRate), forKey: PreferenceKeys.playbackRate)
         guard playerItem != nil else { return }
         if isPlaying {
-            player.playImmediately(atRate: rate)
+            player.playImmediately(atRate: normalizedRate)
         }
     }
 
@@ -170,6 +193,7 @@ final class NativePlayerViewModel: ObservableObject {
             try await applyQuality(option, preserveTime: true, autoplay: shouldAutoplay)
             selectedQuality = option.qn
             selectedQualityID = option.id
+            defaults.set(option.qn, forKey: PreferenceKeys.preferredQuality)
             if let current = source {
                 source = NativePlayableSource(
                     title: current.title,
@@ -190,6 +214,7 @@ final class NativePlayerViewModel: ObservableObject {
 
     func setDanmakuOverlay(_ isEnabled: Bool) {
         isShowingDanmakuOverlay = isEnabled
+        defaults.set(isEnabled, forKey: PreferenceKeys.danmakuOverlay)
         updateVisibleDanmaku(at: currentPlaybackSeconds)
     }
 
@@ -198,7 +223,10 @@ final class NativePlayerViewModel: ObservableObject {
         qualityHydrationTask = nil
         danmakuTask?.cancel()
         danmakuTask = nil
-        persistPlaybackProgress(force: true)
+        Task { [weak self] in
+            guard let self else { return }
+            await self.sendRemoteHeartbeat(force: true)
+        }
         player.pause()
         clearPlayerItemObservers()
         if let playbackObserver {
@@ -211,7 +239,7 @@ final class NativePlayerViewModel: ObservableObject {
         totalDurationSeconds = TimeInterval(selectedPage?.duration ?? video.duration ?? 0)
         isPlaying = false
         selectedQualityID = nil
-        lastPersistedBucket = -1
+        lastRemoteHeartbeatBucket = -1
         visibleDanmaku = []
         overlayDanmaku = []
     }
@@ -667,7 +695,69 @@ final class NativePlayerViewModel: ObservableObject {
 
         isPlaying = player.timeControlStatus == .playing || player.rate > 0
         updateVisibleDanmaku(at: seconds)
-        persistPlaybackProgressIfNeeded()
+        syncRemoteProgressIfNeeded()
+    }
+
+    private func syncRemoteProgressIfNeeded() {
+        guard isPlaying else { return }
+        guard currentPlaybackSeconds >= 5 else { return }
+
+        let bucket = Int(currentPlaybackSeconds / 15)
+        guard bucket != lastRemoteHeartbeatBucket else { return }
+        lastRemoteHeartbeatBucket = bucket
+
+        Task { [weak self] in
+            guard let self else { return }
+            await self.sendRemoteHeartbeat(force: false)
+        }
+    }
+
+    private func reportHistoryIfNeeded() async {
+        guard !didReportHistoryEntry else { return }
+        guard let aid = video.aid else { return }
+
+        do {
+            let csrf = try await apiClient.requireCSRFToken()
+            _ = try await apiClient.postEnvelopeValue(
+                path: BiliEndpoint.historyReport,
+                form: [
+                    "aid": "\(aid)",
+                    "type": "3",
+                    "csrf": csrf
+                ]
+            )
+            didReportHistoryEntry = true
+        } catch {
+            // Keep playback smooth even when remote history sync fails.
+        }
+    }
+
+    private func sendRemoteHeartbeat(force: Bool) async {
+        guard currentPlaybackSeconds >= 5 || force else { return }
+        guard let cid = selectedPage?.cid ?? video.cid else { return }
+
+        do {
+            let csrf = try await apiClient.requireCSRFToken()
+            var form: [String: String] = [
+                "cid": "\(cid)",
+                "type": "3",
+                "played_time": "\(Int(currentPlaybackSeconds.rounded()))",
+                "csrf": csrf
+            ]
+
+            if !video.bvid.isEmpty {
+                form["bvid"] = video.bvid
+            } else if let aid = video.aid {
+                form["aid"] = "\(aid)"
+            }
+
+            _ = try await apiClient.postEnvelopeValue(
+                path: BiliEndpoint.heartbeat,
+                form: form
+            )
+        } catch {
+            // Ignore remote heartbeat failures to avoid disturbing local playback.
+        }
     }
 
     private func playbackClockText(_ seconds: TimeInterval) -> String {
@@ -683,7 +773,7 @@ final class NativePlayerViewModel: ObservableObject {
     }
 
     private func restorePlaybackProgressIfNeeded() {
-        let restoredSeconds = initialSeekSeconds ?? progressStore.progress(for: video, page: selectedPage)?.progressSeconds
+        let restoredSeconds = initialSeekSeconds
         guard let restoredSeconds, restoredSeconds > 5 else { return }
 
         let effectiveDuration = max(totalDurationSeconds, TimeInterval(selectedPage?.duration ?? video.duration ?? 0))
@@ -692,25 +782,6 @@ final class NativePlayerViewModel: ObservableObject {
         }
 
         seek(to: restoredSeconds)
-    }
-
-    private func persistPlaybackProgressIfNeeded() {
-        persistPlaybackProgress(force: false)
-    }
-
-    private func persistPlaybackProgress(force: Bool) {
-        guard playerItem != nil else { return }
-        let bucket = Int(currentPlaybackSeconds / 5)
-        guard force || bucket != lastPersistedBucket else { return }
-        lastPersistedBucket = bucket
-
-        progressStore.saveProgress(
-            video: video,
-            page: selectedPage,
-            progressSeconds: currentPlaybackSeconds,
-            durationSeconds: totalDurationSeconds,
-            title: source?.title ?? video.title
-        )
     }
 
     private func note(for option: PlaybackQualityOption) -> String {
@@ -1008,5 +1079,11 @@ final class NativePlayerViewModel: ObservableObject {
                 errorMessage = error.localizedDescription
             }
         }
+    }
+
+    private static func normalizedPlaybackRate(_ rawRate: Float) -> Float {
+        let supportedRates: [Float] = [0.75, 1.0, 1.25, 1.5, 2.0]
+        guard rawRate > 0 else { return 1.0 }
+        return supportedRates.min(by: { abs($0 - rawRate) < abs($1 - rawRate) }) ?? 1.0
     }
 }

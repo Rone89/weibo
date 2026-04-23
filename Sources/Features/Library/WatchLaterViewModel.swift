@@ -10,12 +10,14 @@ final class WatchLaterViewModel: ObservableObject {
     @Published private(set) var actionMessage: String?
 
     let apiClient: BiliAPIClient
+    private let playbackProgressStore: PlaybackProgressStore
     private let pageSize = 20
     private var nextPage = 1
     private var totalCount = 0
 
-    init(apiClient: BiliAPIClient) {
+    init(apiClient: BiliAPIClient, playbackProgressStore: PlaybackProgressStore = .shared) {
         self.apiClient = apiClient
+        self.playbackProgressStore = playbackProgressStore
     }
 
     func reload() async {
@@ -28,6 +30,7 @@ final class WatchLaterViewModel: ObservableObject {
         do {
             let (loadedEntries, count) = try await fetchWatchLater(page: nextPage)
             entries = loadedEntries
+            syncPlaybackProgress(from: loadedEntries)
             totalCount = count
             nextPage = 2
             canLoadMore = entries.count < totalCount
@@ -52,6 +55,7 @@ final class WatchLaterViewModel: ObservableObject {
             let (loadedEntries, count) = try await fetchWatchLater(page: nextPage)
             let existingIDs = Set(entries.map(\.id))
             entries.append(contentsOf: loadedEntries.filter { !existingIDs.contains($0.id) })
+            syncPlaybackProgress(from: loadedEntries)
             totalCount = max(totalCount, count)
             nextPage += 1
             canLoadMore = entries.count < totalCount && !loadedEntries.isEmpty
@@ -124,5 +128,20 @@ final class WatchLaterViewModel: ObservableObject {
             JSONValue.dictionaries(data["list"]).map(WatchLaterEntry.init),
             JSONValue.int(data["count"]) ?? 0
         )
+    }
+
+    private func syncPlaybackProgress(from entries: [WatchLaterEntry]) {
+        for entry in entries {
+            guard let progress = entry.progress, progress > 0 else { continue }
+            let existingUpdatedAt = playbackProgressStore.progress(for: entry.video, page: nil)?.updatedAt
+            playbackProgressStore.saveProgress(
+                video: entry.video,
+                page: nil,
+                progressSeconds: TimeInterval(progress),
+                durationSeconds: TimeInterval(entry.video.duration ?? progress),
+                title: entry.video.title,
+                updatedAt: existingUpdatedAt
+            )
+        }
     }
 }

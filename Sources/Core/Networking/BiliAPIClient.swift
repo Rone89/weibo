@@ -39,9 +39,16 @@ final class BiliAPIClient {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 20
         configuration.timeoutIntervalForResource = 30
-        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        configuration.requestCachePolicy = .useProtocolCachePolicy
+        configuration.waitsForConnectivity = false
+        configuration.httpMaximumConnectionsPerHost = 8
         configuration.httpShouldSetCookies = true
         configuration.httpCookieStorage = HTTPCookieStorage.shared
+        configuration.urlCache = URLCache(
+            memoryCapacity: 64 * 1024 * 1024,
+            diskCapacity: 256 * 1024 * 1024,
+            diskPath: "bili-api-cache"
+        )
         configuration.httpAdditionalHeaders = [
             "User-Agent": Self.userAgent,
             "Accept-Language": "zh-CN,zh-Hans;q=0.9",

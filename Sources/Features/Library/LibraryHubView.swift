@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LibraryHubView: View {
     @StateObject private var viewModel: LibraryHubViewModel
+    @ObservedObject private var playbackProgressStore = PlaybackProgressStore.shared
     private let onTapSearch: () -> Void
     private let onTapProfile: () -> Void
 
@@ -33,6 +34,8 @@ struct LibraryHubView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .biliCardStyle(tint: .red.opacity(0.2))
                     }
+
+                    continueWatchingSection
 
                     if viewModel.hasSession {
                         overviewSection
@@ -73,7 +76,16 @@ struct LibraryHubView: View {
             .navigationDestination(for: FavoriteFolder.self) { folder in
                 FavoriteFolderDetailView(apiClient: viewModel.apiClient, folder: folder)
             }
+            .navigationDestination(for: VideoSummary.self) { video in
+                VideoDetailView(
+                    viewModel: VideoDetailViewModel(apiClient: viewModel.apiClient, seedVideo: video)
+                )
+            }
         }
+    }
+
+    private var continueWatchingRecords: [PlaybackProgressRecord] {
+        playbackProgressStore.recentRecords(limit: 6)
     }
 
     private var heroSection: some View {
@@ -118,6 +130,19 @@ struct LibraryHubView: View {
             BiliSectionHeader(title: L10n.commonActions, subtitle: L10n.libraryActionsSubtitle)
 
             LazyVGrid(columns: quickActionColumns, spacing: 12) {
+                NavigationLink {
+                    ContinueWatchingView(apiClient: viewModel.apiClient)
+                } label: {
+                    BiliQuickActionTile(
+                        title: L10n.continueWatchingTitle,
+                        subtitle: L10n.libraryContinueWatchingActionSubtitle,
+                        systemImage: "play.circle.fill",
+                        tint: .teal,
+                        badge: L10n.libraryReadyBadge
+                    )
+                }
+                .buttonStyle(.plain)
+
                 NavigationLink {
                     HistoryView(apiClient: viewModel.apiClient)
                 } label: {
@@ -166,6 +191,17 @@ struct LibraryHubView: View {
                 }
                 .buttonStyle(.plain)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var continueWatchingSection: some View {
+        if !continueWatchingRecords.isEmpty {
+            ContinueWatchingShelf(
+                title: L10n.continueWatchingTitle,
+                subtitle: L10n.libraryContinueWatchingSubtitle,
+                records: continueWatchingRecords
+            )
         }
     }
 

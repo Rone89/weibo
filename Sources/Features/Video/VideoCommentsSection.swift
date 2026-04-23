@@ -6,6 +6,7 @@ struct VideoCommentsSection: View {
 
     @State private var composeTarget: CommentComposeTarget?
     @State private var threadTarget: VideoComment?
+    @State private var isPinnedExpanded = true
 
     init(apiClient: BiliAPIClient, oid: Int?, replyType: Int = 1) {
         _viewModel = StateObject(wrappedValue: VideoCommentsViewModel(apiClient: apiClient, replyType: replyType))
@@ -151,24 +152,27 @@ struct VideoCommentsSection: View {
     }
 
     private var header: some View {
-        HStack(alignment: .center) {
-            BiliSectionHeader(
-                title: L10n.videoCommentsTitle,
-                subtitle: L10n.videoCommentsCount(viewModel.totalCount)
-            )
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center) {
+                BiliSectionHeader(
+                    title: L10n.videoCommentsTitle,
+                    subtitle: L10n.videoCommentsSubtitle
+                )
 
-            Spacer()
+                Spacer()
 
-            Menu {
-                ForEach(VideoCommentsViewModel.SortMode.allCases) { mode in
-                    Button(mode.title) {
-                        Task { await viewModel.setSortMode(mode) }
+                BiliMetricPill(
+                    text: L10n.videoCommentsCount(viewModel.totalCount),
+                    systemImage: "bubble.left.and.bubble.right.fill"
+                )
+            }
+
+            BiliGlassGroup(spacing: 10) {
+                HStack(spacing: 10) {
+                    ForEach(VideoCommentsViewModel.SortMode.allCases) { mode in
+                        sortChip(for: mode)
                     }
                 }
-            } label: {
-                Label(viewModel.sortMode.title, systemImage: "arrow.up.arrow.down")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Color("AccentColor"))
             }
         }
     }
@@ -177,27 +181,60 @@ struct VideoCommentsSection: View {
         VStack(alignment: .leading, spacing: 12) {
             BiliSectionHeader(
                 title: L10n.videoCommentsPinnedTitle,
-                subtitle: L10n.videoCommentsPinnedSubtitle(viewModel.topReplies.count)
+                subtitle: L10n.videoCommentsPinnedSubtitle(viewModel.topReplies.count),
+                actionTitle: isPinnedExpanded ? L10n.videoCommentsCollapseText : L10n.videoCommentsExpandText,
+                action: {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                        isPinnedExpanded.toggle()
+                    }
+                }
             )
 
-            VStack(spacing: 12) {
-                ForEach(viewModel.topReplies) { comment in
-                    VideoCommentCard(
-                        comment: comment,
-                        isPinned: true,
-                        onReply: {
-                            composeTarget = .reply(
-                                comment: comment,
-                                placeholder: viewModel.childInputPlaceholder ?? L10n.videoCommentsReplyPlaceholder
-                            )
-                        },
-                        onOpenThread: comment.replyCount > 0 ? {
-                            threadTarget = comment
-                        } : nil
-                    )
+            if isPinnedExpanded {
+                VStack(spacing: 12) {
+                    ForEach(viewModel.topReplies) { comment in
+                        VideoCommentCard(
+                            comment: comment,
+                            isPinned: true,
+                            onReply: {
+                                composeTarget = .reply(
+                                    comment: comment,
+                                    placeholder: viewModel.childInputPlaceholder ?? L10n.videoCommentsReplyPlaceholder
+                                )
+                            },
+                            onOpenThread: comment.replyCount > 0 ? {
+                                threadTarget = comment
+                            } : nil
+                        )
+                    }
                 }
             }
         }
+    }
+
+    private func sortChip(for mode: VideoCommentsViewModel.SortMode) -> some View {
+        Button {
+            Task { await viewModel.setSortMode(mode) }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: mode == .hottest ? "flame.fill" : "clock")
+                Text(mode.title)
+                    .lineLimit(1)
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(viewModel.sortMode == mode ? .white : .primary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .background(
+                Capsule()
+                    .fill(viewModel.sortMode == mode ? Color("AccentColor") : Color(.systemBackground).opacity(0.72))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(Color.black.opacity(viewModel.sortMode == mode ? 0.0 : 0.05), lineWidth: 0.8)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -248,6 +285,7 @@ private struct VideoCommentCard: View {
     var showsPreviewReplies = true
     let onReply: () -> Void
     let onOpenThread: (() -> Void)?
+    @State private var isExpanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -274,10 +312,24 @@ private struct VideoCommentCard: View {
                         }
                     }
 
-                    Text(comment.message)
-                        .font(.subheadline)
-                        .foregroundStyle(.primary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(comment.message)
+                            .font(.subheadline)
+                            .foregroundStyle(.primary)
+                            .lineLimit(needsExpansion && !isExpanded ? 4 : nil)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        if needsExpansion {
+                            Button(isExpanded ? L10n.videoCommentsCollapseText : L10n.videoCommentsExpandText) {
+                                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                                    isExpanded.toggle()
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Color("AccentColor"))
+                        }
+                    }
                 }
 
                 Spacer(minLength: 0)
@@ -301,18 +353,20 @@ private struct VideoCommentCard: View {
                 Spacer(minLength: 0)
             }
 
-            HStack(spacing: 10) {
-                Button(L10n.videoCommentsReplyAction, action: onReply)
-                    .buttonStyle(.plain)
-                    .biliSecondaryActionButton(fillWidth: false)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    Button(L10n.videoCommentsReplyAction, action: onReply)
+                        .buttonStyle(.plain)
+                        .biliSecondaryActionButton(fillWidth: false)
 
-                if let onOpenThread {
-                    Button(
-                        comment.replySummaryLabel ?? L10n.videoCommentsOpenThread(comment.replyCount),
-                        action: onOpenThread
-                    )
-                    .buttonStyle(.plain)
-                    .biliPrimaryActionButton(fillWidth: false)
+                    if let onOpenThread {
+                        Button(
+                            comment.replySummaryLabel ?? L10n.videoCommentsOpenThread(comment.replyCount),
+                            action: onOpenThread
+                        )
+                        .buttonStyle(.plain)
+                        .biliPrimaryActionButton(fillWidth: false)
+                    }
                 }
             }
 
@@ -334,6 +388,10 @@ private struct VideoCommentCard: View {
         }
         .padding(16)
         .biliCardStyle(cornerRadius: 24, tint: isPinned ? .pink.opacity(0.18) : .white, interactive: false, shadowOpacity: 0.03)
+    }
+
+    private var needsExpansion: Bool {
+        comment.message.count > 120 || comment.message.filter(\.isNewline).count >= 2
     }
 
     private func commentBadge(_ text: String, tint: Color) -> some View {
@@ -394,6 +452,8 @@ private struct VideoCommentRepliesSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    threadOverviewCard
+
                     if let actionMessage = viewModel.actionMessage {
                         Text(actionMessage)
                             .font(.footnote)
@@ -535,6 +595,39 @@ private struct VideoCommentRepliesSheet: View {
                 }
             )
         }
+    }
+
+    private var threadOverviewCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            BiliSectionHeader(
+                title: L10n.videoCommentsThreadTitle,
+                subtitle: L10n.videoCommentsCount(viewModel.totalCount)
+            )
+
+            HStack(spacing: 10) {
+                if let rootComment = viewModel.rootComment {
+                    BiliMetricPill(
+                        text: rootComment.author.name,
+                        systemImage: "person.fill"
+                    )
+                }
+
+                BiliMetricPill(
+                    text: L10n.videoCommentsCount(viewModel.totalCount),
+                    systemImage: "bubble.left.and.bubble.right.fill"
+                )
+
+                if let placeholder = viewModel.inputPlaceholder, !placeholder.isEmpty {
+                    BiliMetricPill(
+                        text: L10n.videoCommentsReplyAction,
+                        systemImage: "square.and.pencil",
+                        tint: .teal
+                    )
+                }
+            }
+        }
+        .padding(16)
+        .biliCardStyle(cornerRadius: 24, tint: .blue.opacity(0.16), shadowOpacity: 0.03)
     }
 }
 

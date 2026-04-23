@@ -71,7 +71,12 @@ private final class PosterImageLoader: ObservableObject {
         configuration.timeoutIntervalForRequest = 15
         configuration.timeoutIntervalForResource = 20
         configuration.requestCachePolicy = .returnCacheDataElseLoad
-        configuration.urlCache = .shared
+        configuration.httpMaximumConnectionsPerHost = 10
+        configuration.urlCache = URLCache(
+            memoryCapacity: 96 * 1024 * 1024,
+            diskCapacity: 512 * 1024 * 1024,
+            diskPath: "poster-image-cache"
+        )
         return URLSession(configuration: configuration)
     }()
 

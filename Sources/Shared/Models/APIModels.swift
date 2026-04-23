@@ -218,18 +218,6 @@ struct UserProfile: Hashable {
     }
 }
 
-struct UserStat: Hashable {
-    let followingCount: Int
-    let followerCount: Int
-    let dynamicCount: Int
-
-    init(json: [String: Any]) {
-        self.followingCount = JSONValue.int(json["following"]) ?? 0
-        self.followerCount = JSONValue.int(json["follower"]) ?? 0
-        self.dynamicCount = JSONValue.int(json["dynamic_count"]) ?? 0
-    }
-}
-
 struct FavoriteFolder: Identifiable, Hashable {
     let id: Int
     let title: String
