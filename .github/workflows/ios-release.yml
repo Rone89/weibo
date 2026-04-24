@@ -30,12 +30,11 @@ jobs:
           echo "DEVELOPER_DIR=${XCODE_PATH}/Contents/Developer" >> "$GITHUB_ENV"
           "${XCODE_PATH}/Contents/Developer/usr/bin/xcodebuild" -version
 
-      - name: Ensure iOS Device Platform
+      - name: Verify Xcode Platforms
         shell: bash
         run: |
           set -euo pipefail
           sudo xcodebuild -runFirstLaunch || true
-          sudo xcodebuild -downloadPlatform iOS
           xcodebuild -showsdks
 
       - name: Install XcodeGen
