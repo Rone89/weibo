@@ -300,7 +300,7 @@ final class QRCodeLoginViewModel: ObservableObject {
     }
 
     private func requestQRCodeSession() async throws -> QRCodeLoginSession {
-        let params = BiliAppSigner.sign([
+        let params = QRCodeAppSigner.sign([
             "local_id": "0",
             "mobi_app": "android_hd",
             "platform": "android"
@@ -310,7 +310,7 @@ final class QRCodeLoginViewModel: ObservableObject {
             baseURL: BiliBaseURL.passport,
             path: BiliEndpoint.qrCodeAuthCode,
             query: params,
-            headers: BiliAppSigner.headers
+            headers: QRCodeAppSigner.headers
         )
 
         guard let root = object as? [String: Any] else {
@@ -336,7 +336,7 @@ final class QRCodeLoginViewModel: ObservableObject {
     }
 
     private func pollQRCodeStatus(authCode: String) async throws -> QRCodePollResult {
-        let params = BiliAppSigner.sign([
+        let params = QRCodeAppSigner.sign([
             "auth_code": authCode,
             "local_id": "0"
         ])
@@ -345,7 +345,7 @@ final class QRCodeLoginViewModel: ObservableObject {
             baseURL: BiliBaseURL.passport,
             path: BiliEndpoint.qrCodePoll,
             query: params,
-            headers: BiliAppSigner.headers
+            headers: QRCodeAppSigner.headers
         )
 
         guard let root = object as? [String: Any] else {
@@ -406,7 +406,7 @@ private enum QRCodePollResult {
     case success(String)
 }
 
-private enum BiliAppSigner {
+private enum QRCodeAppSigner {
     static let appKey = "dfca71928277209b"
     static let appSecret = "b5475a8825547a4fc26c7d518eaaa02e"
 

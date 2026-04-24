@@ -54,11 +54,11 @@ final class HomeViewModel: ObservableObject {
         errorMessage = nil
 
         let previousRecommendedIDs = Set(recommendedVideos.map(\.id))
-        async let placeholderResult = captureResult { try await fetchSearchPlaceholder() }
-        async let recommendedResult = captureResult { try await fetchInitialRecommendedVideos(avoiding: previousRecommendedIDs) }
-        async let hotResult = captureResult { try await fetchHotVideos(page: 1) }
-        async let liveResult = captureResult { try await fetchLiveHighlights() }
-        async let bangumiResult = captureResult { try await fetchBangumiHighlights() }
+        async let placeholderResult = captureResult { try await self.fetchSearchPlaceholder() }
+        async let recommendedResult = captureResult { try await self.fetchInitialRecommendedVideos(avoiding: previousRecommendedIDs) }
+        async let hotResult = captureResult { try await self.fetchHotVideos(page: 1) }
+        async let liveResult = captureResult { try await self.fetchLiveHighlights() }
+        async let bangumiResult = captureResult { try await self.fetchBangumiHighlights() }
 
         let (placeholderValue, recommendedValue, hotValue, liveValue, bangumiValue) = await (
             placeholderResult,

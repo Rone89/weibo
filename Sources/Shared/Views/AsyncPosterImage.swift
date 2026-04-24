@@ -118,7 +118,7 @@ private final class PosterImageLoader: ObservableObject {
                 return
             }
 
-            let image = try await Task.detached(priority: .utility) {
+            let image = await Task.detached(priority: .utility) {
                 Self.decodeImage(from: data, targetSize: targetSize, scale: scale)
             }.value
 
@@ -135,7 +135,7 @@ private final class PosterImageLoader: ObservableObject {
         }
     }
 
-    private static func decodeImage(from data: Data, targetSize: CGSize?, scale: CGFloat) -> UIImage? {
+    nonisolated private static func decodeImage(from data: Data, targetSize: CGSize?, scale: CGFloat) -> UIImage? {
         let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
         guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else {
             return UIImage(data: data)
