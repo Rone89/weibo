@@ -231,16 +231,16 @@ struct VideoCommentsSection: View {
                     .lineLimit(1)
             }
             .font(.subheadline.weight(.semibold))
-            .foregroundColor(viewModel.sortMode == mode ? .white : .primary)
+            .foregroundColor(.primary)
             .padding(.horizontal, 14)
             .padding(.vertical, 11)
             .background(
                 Capsule()
-                    .fill(viewModel.sortMode == mode ? Color("AccentColor").opacity(0.96) : Color(.secondarySystemBackground).opacity(0.96))
+                    .fill(viewModel.sortMode == mode ? Color("AccentColor").opacity(0.16) : Color(.secondarySystemBackground).opacity(0.96))
             )
             .overlay(
                 Capsule()
-                    .stroke(Color.black.opacity(viewModel.sortMode == mode ? 0.0 : 0.05), lineWidth: 0.8)
+                    .stroke((viewModel.sortMode == mode ? Color("AccentColor") : Color.black).opacity(viewModel.sortMode == mode ? 0.22 : 0.05), lineWidth: 0.8)
             )
         }
         .buttonStyle(.plain)

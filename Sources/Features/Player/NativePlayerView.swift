@@ -1,4 +1,5 @@
 import AVFoundation
+import AVKit
 import MediaPlayer
 import SwiftUI
 import UIKit
@@ -197,16 +198,20 @@ struct NativePlayerView: View {
         Group {
             switch preferredSurfaceMode {
             case .native:
-                InteractivePlayerSurface(
-                    viewModel: viewModel,
-                    isFullscreen: false,
-                    showsChrome: displayMode == .standalone,
-                    aspectMode: preferredAspectMode,
-                    onSelectAspectMode: setPreferredAspectMode,
-                    onToggleFullscreen: {
+                ZStack(alignment: .topTrailing) {
+                    NativePlayerControllerView(player: viewModel.player)
+                    Button {
                         isPresentingFullscreen = true
+                    } label: {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 38, height: 38)
+                            .background(.black.opacity(0.42), in: Circle())
                     }
-                )
+                    .buttonStyle(.plain)
+                    .padding(14)
+                }
             case .compatibility:
                 compatibilityPreviewCard
             }
@@ -219,8 +224,6 @@ struct NativePlayerView: View {
             playerHeader
 
             if preferredSurfaceMode == .native {
-                transportSection
-
                 if !viewModel.qualityOptions.isEmpty {
                     qualitySection
                 }
@@ -807,17 +810,44 @@ private struct NativePlayerFullscreenView: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            InteractivePlayerSurface(
-                viewModel: viewModel,
-                isFullscreen: true,
-                showsChrome: true,
-                aspectMode: aspectMode,
-                onSelectAspectMode: onSelectAspectMode,
-                onToggleFullscreen: {
-                    isPresented = false
+            NativePlayerControllerView(player: viewModel.player)
+                .ignoresSafeArea()
+
+            VStack {
+                HStack {
+                    Button {
+                        isPresented = false
+                    } label: {
+                        Image(systemName: "arrow.down.right.and.arrow.up.left")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 38, height: 38)
+                            .background(.black.opacity(0.42), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+
+                    Menu {
+                        ForEach(PlayerAspectMode.allCases) { mode in
+                            Button(mode.title) {
+                                onSelectAspectMode(mode)
+                            }
+                        }
+                    } label: {
+                        Image(systemName: aspectMode.systemImage)
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 38, height: 38)
+                            .background(.black.opacity(0.42), in: Circle())
+                    }
+                    .buttonStyle(.plain)
                 }
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+
+                Spacer()
+            }
         }
         .statusBarHidden(true)
         .onAppear {
@@ -825,6 +855,28 @@ private struct NativePlayerFullscreenView: View {
         }
         .onDisappear {
             PlayerOrientationController.shared.requestPortrait()
+        }
+    }
+}
+
+private struct NativePlayerControllerView: UIViewControllerRepresentable {
+    let player: AVPlayer
+
+    func makeUIViewController(context: Context) -> AVPlayerViewController {
+        let controller = AVPlayerViewController()
+        controller.player = player
+        controller.showsPlaybackControls = true
+        controller.entersFullScreenWhenPlaybackBegins = false
+        controller.exitsFullScreenWhenPlaybackEnds = false
+        controller.allowsPictureInPicturePlayback = false
+        controller.updatesNowPlayingInfoCenter = false
+        controller.view.backgroundColor = .black
+        return controller
+    }
+
+    func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {
+        if controller.player !== player {
+            controller.player = player
         }
     }
 }

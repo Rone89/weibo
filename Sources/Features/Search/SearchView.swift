@@ -79,33 +79,21 @@ struct SearchView: View {
     }
 
     private var headerPanel: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(L10n.tabSearch)
-                        .font(.system(size: 32, weight: .black, design: .rounded))
-                    Text(L10n.searchDiscoverySubtitle2)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: 12)
-
-                compactHeaderButton(systemImage: "sparkles", tint: .blue)
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(L10n.tabSearch)
+                    .font(.system(size: 32, weight: .black, design: .rounded))
+                Text(viewModel.hasCommittedSearch ? L10n.resultsSubtitle(viewModel.totalResultsCount) : L10n.searchDiscoverySubtitle2)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
-            HStack(spacing: 10) {
-                BiliMetricPill(text: "\(viewModel.trendingKeywords.count) \u{4e2a}\u{70ed}\u{8bcd}", systemImage: "flame.fill", tint: .orange)
-                BiliMetricPill(text: "\(viewModel.history.count) \u{6761}\u{5386}\u{53f2}", systemImage: "clock.arrow.circlepath")
-                if viewModel.hasCommittedSearch {
-                    BiliMetricPill(text: viewModel.selectedScope.title, systemImage: viewModel.selectedScope.systemImage)
-                    BiliMetricPill(text: L10n.resultsSubtitle(viewModel.totalResultsCount), systemImage: "text.cursor")
-                }
-            }
+            Spacer(minLength: 12)
+
+            compactHeaderButton(systemImage: "sparkles", tint: .blue)
         }
-        .padding(20)
-        .biliPanelCardStyle(tint: .blue.opacity(0.3), interactive: true)
+        .padding(.horizontal, 2)
     }
 
     private var bottomDock: some View {

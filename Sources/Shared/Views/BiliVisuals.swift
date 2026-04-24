@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct BiliBackground<Content: View>: View {
+    @Environment(\.colorScheme) private var colorScheme
     private let content: Content
 
     init(@ViewBuilder content: () -> Content) {
@@ -10,18 +11,14 @@ struct BiliBackground<Content: View>: View {
     var body: some View {
         ZStack {
             LinearGradient(
-                colors: [
-                    Color(red: 0.97, green: 0.96, blue: 0.98),
-                    Color(red: 0.93, green: 0.96, blue: 0.99),
-                    Color(red: 0.96, green: 0.96, blue: 0.95)
-                ],
+                colors: backgroundGradientColors,
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
 
             RadialGradient(
-                colors: [Color("AccentColor").opacity(0.12), .clear],
+                colors: [Color("AccentColor").opacity(colorScheme == .dark ? 0.16 : 0.12), .clear],
                 center: .topLeading,
                 startRadius: 12,
                 endRadius: 260
@@ -29,7 +26,7 @@ struct BiliBackground<Content: View>: View {
             .ignoresSafeArea()
 
             RadialGradient(
-                colors: [Color.orange.opacity(0.08), .clear],
+                colors: [Color.orange.opacity(colorScheme == .dark ? 0.12 : 0.08), .clear],
                 center: .topTrailing,
                 startRadius: 20,
                 endRadius: 240
@@ -38,6 +35,22 @@ struct BiliBackground<Content: View>: View {
 
             content
         }
+    }
+
+    private var backgroundGradientColors: [Color] {
+        if colorScheme == .dark {
+            return [
+                Color(red: 0.09, green: 0.10, blue: 0.14),
+                Color(red: 0.08, green: 0.11, blue: 0.16),
+                Color(red: 0.11, green: 0.10, blue: 0.13)
+            ]
+        }
+
+        return [
+            Color(red: 0.97, green: 0.96, blue: 0.98),
+            Color(red: 0.93, green: 0.96, blue: 0.99),
+            Color(red: 0.96, green: 0.96, blue: 0.95)
+        ]
     }
 }
 
@@ -167,7 +180,7 @@ struct BiliQuickActionTile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top) {
-                BiliSymbolOrb(systemImage: systemImage, tint: tint, lightweight: true)
+                quickActionIcon
 
                 Spacer(minLength: 8)
 
@@ -195,6 +208,22 @@ struct BiliQuickActionTile: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
         .biliListCardStyle(tint: tint, interactive: true)
+    }
+
+    private var quickActionIcon: some View {
+        Image(systemName: systemImage)
+            .symbolRenderingMode(.monochrome)
+            .font(.system(size: 18, weight: .semibold))
+            .foregroundColor(tint)
+            .frame(width: 40, height: 40)
+            .background(
+                Circle()
+                    .fill(Color(.secondarySystemBackground).opacity(0.96))
+            )
+            .overlay(
+                Circle()
+                    .stroke(Color.black.opacity(0.05), lineWidth: 0.8)
+            )
     }
 }
 

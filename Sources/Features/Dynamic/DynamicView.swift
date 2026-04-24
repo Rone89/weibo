@@ -406,26 +406,139 @@ struct DynamicQuotedCard: View {
 
 struct DynamicImageGrid: View {
     let images: [DynamicFeedImage]
+    @State private var selectedImage: DynamicFeedImage?
 
     var body: some View {
-        if images.count == 1, let first = images.first {
-            AsyncPosterImage(urlString: first.url, width: nil, height: 220)
-                .frame(maxWidth: .infinity)
-        } else {
-            LazyVGrid(columns: columns, spacing: 10) {
-                ForEach(images.prefix(4)) { image in
-                    AsyncPosterImage(urlString: image.url, width: nil, height: 120)
+        Group {
+            if images.count == 1, let first = images.first {
+                Button {
+                    selectedImage = first
+                } label: {
+                    AsyncPosterImage(urlString: first.url, width: nil, height: 220)
                         .frame(maxWidth: .infinity)
                 }
+                .buttonStyle(.plain)
+            } else {
+                LazyVGrid(columns: columns, spacing: 8) {
+                    ForEach(images.prefix(9)) { image in
+                        Button {
+                            selectedImage = image
+                        } label: {
+                            AsyncPosterImage(urlString: image.url, width: nil, height: thumbnailSize)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
+        }
+        .fullScreenCover(item: $selectedImage) { image in
+            DynamicImageViewer(images: Array(images.prefix(9)), initialImage: image)
         }
     }
 
     private var columns: [GridItem] {
-        [
-            GridItem(.flexible(), spacing: 10),
-            GridItem(.flexible(), spacing: 10)
-        ]
+        let count = images.count
+        let columnCount = (count == 2 || count == 4) ? 2 : 3
+        return Array(repeating: GridItem(.flexible(), spacing: 8), count: columnCount)
+    }
+
+    private var thumbnailSize: CGFloat {
+        images.count <= 4 ? 132 : 104
+    }
+}
+
+private struct DynamicImageViewer: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let images: [DynamicFeedImage]
+    let initialImage: DynamicFeedImage
+    @State private var selection: String
+
+    init(images: [DynamicFeedImage], initialImage: DynamicFeedImage) {
+        self.images = images
+        self.initialImage = initialImage
+        _selection = State(initialValue: initialImage.id)
+    }
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.ignoresSafeArea()
+
+            TabView(selection: $selection) {
+                ForEach(images) { image in
+                    DynamicFullscreenImage(urlString: image.url)
+                        .tag(image.id)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .automatic))
+
+            VStack(spacing: 12) {
+                HStack {
+                    Spacer()
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 38, height: 38)
+                            .background(.black.opacity(0.42), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Text(currentPageLabel)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(.black.opacity(0.36), in: Capsule())
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+        }
+        .statusBarHidden(true)
+    }
+
+    private var currentPageLabel: String {
+        let currentIndex = images.firstIndex(where: { $0.id == selection }).map { $0 + 1 } ?? 1
+        return "\(currentIndex) / \(images.count)"
+    }
+}
+
+private struct DynamicFullscreenImage: View {
+    let urlString: String?
+
+    var body: some View {
+        GeometryReader { proxy in
+            AsyncImage(url: urlString?.normalizedBiliURLString.flatMap(URL.init(string:))) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                case .failure:
+                    VStack(spacing: 12) {
+                        Image(systemName: "photo")
+                            .font(.system(size: 36, weight: .regular))
+                            .foregroundStyle(.white.opacity(0.82))
+                        Text(L10n.imageLoadFailed)
+                            .font(.footnote)
+                            .foregroundStyle(.white.opacity(0.72))
+                    }
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                case .empty:
+                    ProgressView()
+                        .tint(.white)
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                @unknown default:
+                    Color.clear
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                }
+            }
+        }
     }
 }
 

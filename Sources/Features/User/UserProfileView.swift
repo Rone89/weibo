@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct UserProfileView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var viewModel: UserProfileViewModel
 
     init(apiClient: BiliAPIClient, reference: UserReference) {
@@ -99,18 +100,33 @@ struct UserProfileView: View {
                 Button {
                     Task { await viewModel.toggleFollow() }
                 } label: {
-                    Label(
-                        viewModel.isFollowing ? L10n.userProfileUnfollowAction : L10n.userProfileFollowAction,
-                        systemImage: viewModel.isFollowing ? "person.badge.minus" : "person.badge.plus"
-                    )
+                    followButtonLabel
                 }
                 .buttonStyle(.plain)
-                .biliPrimaryActionButton(fillWidth: false)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(viewModel.isFollowing ? Color(.secondarySystemBackground).opacity(0.96) : Color("AccentColor"))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke((viewModel.isFollowing ? Color.black : Color("AccentColor")).opacity(0.08), lineWidth: 0.8)
+                )
                 .disabled(viewModel.isSubmittingFollow)
             }
         }
         .padding(20)
         .biliPanelCardStyle(tint: .blue.opacity(0.28), interactive: true)
+    }
+
+    private var followButtonLabel: some View {
+        HStack(spacing: 8) {
+            Image(systemName: viewModel.isFollowing ? "person.badge.minus" : "person.badge.plus")
+            Text(viewModel.isFollowing ? L10n.userProfileUnfollowAction : L10n.userProfileFollowAction)
+        }
+        .font(.subheadline.weight(.semibold))
+        .foregroundColor(viewModel.isFollowing ? .primary : .white)
     }
 
     private var relationSection: some View {
@@ -234,7 +250,11 @@ struct UserProfileView: View {
             .foregroundStyle(tint)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(tint.opacity(0.12), in: Capsule())
+            .background(Color(.secondarySystemBackground).opacity(colorScheme == .dark ? 0.96 : 0.9), in: Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(tint.opacity(0.16), lineWidth: 0.8)
+            )
     }
 
     private func messageCard(text: String, tint: Color) -> some View {

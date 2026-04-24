@@ -133,6 +133,7 @@ enum L10n {
     static let searchDurationLong = "30-60 \u{5206}\u{949f}"
     static let searchDurationXL = "60 \u{5206}\u{949f}+"
     static let searchUserLiveBadge = "\u{5f00}\u{64ad}\u{4e2d}"
+    static let imageLoadFailed = "\u{56fe}\u{7247}\u{52a0}\u{8f7d}\u{5931}\u{8d25}"
 
     static let videoDetailTitle = "\u{89c6}\u{9891}\u{8be6}\u{60c5}"
     static let videoDetailLoading = "\u{6b63}\u{5728}\u{52a0}\u{8f7d}\u{89c6}\u{9891}\u{8be6}\u{60c5}..."

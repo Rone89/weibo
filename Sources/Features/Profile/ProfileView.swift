@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ProfileView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var viewModel: ProfileViewModel
     @ObservedObject private var preferencesStore: AppPreferencesStore
     @State private var isPresentingCookieEditor = false
@@ -507,10 +508,10 @@ struct ProfileView: View {
             .foregroundStyle(.primary)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(.white.opacity(0.7), in: Capsule())
+            .background(Color(.secondarySystemBackground).opacity(colorScheme == .dark ? 0.96 : 0.88), in: Capsule())
             .overlay(
                 Capsule()
-                    .stroke(.white.opacity(0.78), lineWidth: 1)
+                    .stroke(Color.black.opacity(0.05), lineWidth: 0.8)
             )
     }
 }

@@ -47,6 +47,5 @@ struct RootTabView: View {
         .tint(Color("AccentColor"))
         .toolbarBackground(.visible, for: .tabBar)
         .toolbarBackground(Color(.systemBackground).opacity(0.96), for: .tabBar)
-        .toolbarColorScheme(.light, for: .tabBar)
     }
 }
