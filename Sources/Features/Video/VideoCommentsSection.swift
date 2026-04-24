@@ -190,7 +190,7 @@ struct VideoCommentsSection: View {
                 subtitle: L10n.videoCommentsPinnedSubtitle(viewModel.topReplies.count),
                 actionTitle: isPinnedExpanded ? L10n.videoCommentsCollapseText : L10n.videoCommentsExpandText,
                 action: {
-                    withAnimation(.easeInOut(duration: 0.16)) {
+                    withAnimation(.linear(duration: 0.12)) {
                         isPinnedExpanded.toggle()
                     }
                 }
@@ -339,7 +339,7 @@ private struct VideoCommentCard: View {
 
                         if needsExpansion {
                             Button(isExpanded ? L10n.videoCommentsCollapseText : L10n.videoCommentsExpandText) {
-                                withAnimation(.easeInOut(duration: 0.16)) {
+                                withAnimation(.linear(duration: 0.12)) {
                                     isExpanded.toggle()
                                 }
                             }

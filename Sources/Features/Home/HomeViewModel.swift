@@ -32,7 +32,7 @@ final class HomeViewModel: ObservableObject {
 
         do {
             let loadedVideos = try await fetchRecommendedVideos(freshIndex: 0)
-            withAnimation(.easeInOut(duration: 0.18)) {
+            withAnimation(.linear(duration: 0.12)) {
                 recommendedVideos = loadedVideos
             }
             nextRecommendedFreshIndex = 1
@@ -85,7 +85,7 @@ final class HomeViewModel: ObservableObject {
 
             nextRecommendedFreshIndex = candidateFreshIndex
             if !appendedVideos.isEmpty {
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(.linear(duration: 0.12)) {
                     recommendedVideos = appendedVideos + recommendedVideos
                 }
             }

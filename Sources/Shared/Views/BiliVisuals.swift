@@ -141,7 +141,7 @@ struct BiliSymbolOrb: View {
                 Circle()
                     .stroke(Color.black.opacity(0.05), lineWidth: 0.8)
             )
-            .shadow(color: Color.black.opacity(lightweight ? 0.02 : 0.05), radius: lightweight ? 3 : 10, x: 0, y: lightweight ? 1 : 4)
+            .shadow(color: Color.black.opacity(lightweight ? 0.015 : 0.04), radius: lightweight ? 2 : 7, x: 0, y: lightweight ? 1 : 3)
 
         if lightweight {
             orb
@@ -235,7 +235,7 @@ struct BiliCardModifier: ViewModifier {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .stroke(Color.black.opacity(0.05), lineWidth: 0.8)
                 )
-                .shadow(color: Color.black.opacity(shadowOpacity * 0.9), radius: 10, x: 0, y: 6)
+                .shadow(color: Color.black.opacity(shadowOpacity * 0.8), radius: 7, x: 0, y: 4)
         } else {
             content
                 .background(
@@ -246,7 +246,7 @@ struct BiliCardModifier: ViewModifier {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .stroke(Color.black.opacity(0.05), lineWidth: 0.8)
                 )
-                .shadow(color: Color.black.opacity(shadowOpacity * 0.9), radius: 10, x: 0, y: 6)
+                .shadow(color: Color.black.opacity(shadowOpacity * 0.8), radius: 7, x: 0, y: 4)
         }
     }
 }
@@ -266,7 +266,7 @@ struct BiliListCardModifier: ViewModifier {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .stroke(tint.opacity(0.08), lineWidth: 0.8)
             )
-            .shadow(color: Color.black.opacity(interactive ? 0.04 : 0.02), radius: 5, x: 0, y: 3)
+            .shadow(color: Color.black.opacity(interactive ? 0.03 : 0.015), radius: 3, x: 0, y: 2)
     }
 }
 
@@ -281,7 +281,7 @@ struct BiliHeroCardModifier: ViewModifier {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .stroke(tint.opacity(0.12), lineWidth: 0.8)
             )
-            .shadow(color: Color.black.opacity(shadowOpacity), radius: 8, x: 0, y: 4)
+            .shadow(color: Color.black.opacity(shadowOpacity * 0.85), radius: 6, x: 0, y: 3)
     }
 }
 
@@ -301,7 +301,7 @@ struct BiliPanelCardModifier: ViewModifier {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .stroke(tint.opacity(0.1), lineWidth: 0.9)
             )
-            .shadow(color: Color.black.opacity(shadowOpacity * 0.82), radius: 8, x: 0, y: 4)
+            .shadow(color: Color.black.opacity(shadowOpacity * 0.72), radius: 6, x: 0, y: 3)
             .opacity(interactive ? 1 : 0.98)
     }
 }

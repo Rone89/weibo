@@ -208,7 +208,7 @@ struct DynamicDetailView: View {
 
                 if needsTextExpansion(item.text) {
                     Button(isExpandedText ? L10n.dynamicCollapseText : L10n.dynamicExpandText) {
-                        withAnimation(.easeInOut(duration: 0.16)) {
+                        withAnimation(.linear(duration: 0.12)) {
                             isExpandedText.toggle()
                         }
                     }

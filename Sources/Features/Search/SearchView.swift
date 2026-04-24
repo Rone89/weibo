@@ -14,7 +14,7 @@ struct SearchView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                LazyVStack(alignment: .leading, spacing: 20) {
                     headerPanel
 
                     if !viewModel.suggestions.isEmpty && !viewModel.query.isEmpty && isSearchFieldFocused {
@@ -309,7 +309,7 @@ struct SearchView: View {
     }
 
     private var videoResultsList: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        LazyVStack(alignment: .leading, spacing: 14) {
             if let topResult = videoResults.first {
                 NavigationLink(value: topResult) {
                     SearchBestMatchCard(
@@ -334,7 +334,7 @@ struct SearchView: View {
     }
 
     private var landingSection: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        LazyVStack(alignment: .leading, spacing: 18) {
             if !discoveryKeywords.isEmpty {
                 searchDiscoveryRow
             }
