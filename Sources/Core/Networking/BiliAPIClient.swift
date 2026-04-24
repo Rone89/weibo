@@ -32,9 +32,11 @@ final class BiliAPIClient {
 
     let session: URLSession
     let sessionStore: SessionStore
+    let preferencesStore: AppPreferencesStore
 
-    init(sessionStore: SessionStore) {
+    init(sessionStore: SessionStore, preferencesStore: AppPreferencesStore) {
         self.sessionStore = sessionStore
+        self.preferencesStore = preferencesStore
 
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 20
@@ -63,7 +65,8 @@ final class BiliAPIClient {
         path: String,
         query: [String: String] = [:],
         headers: [String: String] = [:],
-        signedByWBI: Bool = false
+        signedByWBI: Bool = false,
+        includeCookies: Bool = true
     ) async throws -> Any {
         try await sendJSONRequest(
             baseURL: baseURL,
@@ -72,7 +75,8 @@ final class BiliAPIClient {
             query: query,
             headers: headers,
             body: nil,
-            signedByWBI: signedByWBI
+            signedByWBI: signedByWBI,
+            includeCookies: includeCookies
         )
     }
 
@@ -83,7 +87,8 @@ final class BiliAPIClient {
         query: [String: String] = [:],
         headers: [String: String] = [:],
         signedByWBI: Bool = false,
-        contentType: String = "application/x-www-form-urlencoded; charset=utf-8"
+        contentType: String = "application/x-www-form-urlencoded; charset=utf-8",
+        includeCookies: Bool = true
     ) async throws -> Any {
         let body = formEncodedData(from: form)
         var mergedHeaders = headers
@@ -95,7 +100,8 @@ final class BiliAPIClient {
             query: query,
             headers: mergedHeaders,
             body: body,
-            signedByWBI: signedByWBI
+            signedByWBI: signedByWBI,
+            includeCookies: includeCookies
         )
     }
 
@@ -104,7 +110,8 @@ final class BiliAPIClient {
         path: String,
         query: [String: String] = [:],
         headers: [String: String] = [:],
-        signedByWBI: Bool = false
+        signedByWBI: Bool = false,
+        includeCookies: Bool = true
     ) async throws -> Any {
         try extractEnvelopeValue(
             from: await requestJSON(
@@ -112,7 +119,8 @@ final class BiliAPIClient {
                 path: path,
                 query: query,
                 headers: headers,
-                signedByWBI: signedByWBI
+                signedByWBI: signedByWBI,
+                includeCookies: includeCookies
             )
         )
     }
@@ -123,7 +131,8 @@ final class BiliAPIClient {
         form: [String: String] = [:],
         query: [String: String] = [:],
         headers: [String: String] = [:],
-        signedByWBI: Bool = false
+        signedByWBI: Bool = false,
+        includeCookies: Bool = true
     ) async throws -> Any {
         try extractEnvelopeValue(
             from: await postJSON(
@@ -132,7 +141,8 @@ final class BiliAPIClient {
                 form: form,
                 query: query,
                 headers: headers,
-                signedByWBI: signedByWBI
+                signedByWBI: signedByWBI,
+                includeCookies: includeCookies
             )
         )
     }
@@ -142,14 +152,16 @@ final class BiliAPIClient {
         path: String,
         query: [String: String] = [:],
         headers: [String: String] = [:],
-        signedByWBI: Bool = false
+        signedByWBI: Bool = false,
+        includeCookies: Bool = true
     ) async throws -> [String: Any] {
         guard let data = try await requestEnvelopeValue(
             baseURL: baseURL,
             path: path,
             query: query,
             headers: headers,
-            signedByWBI: signedByWBI
+            signedByWBI: signedByWBI,
+            includeCookies: includeCookies
         ) as? [String: Any] else {
             throw APIError.invalidPayload
         }
@@ -162,7 +174,8 @@ final class BiliAPIClient {
         form: [String: String] = [:],
         query: [String: String] = [:],
         headers: [String: String] = [:],
-        signedByWBI: Bool = false
+        signedByWBI: Bool = false,
+        includeCookies: Bool = true
     ) async throws -> [String: Any] {
         guard let data = try await postEnvelopeValue(
             baseURL: baseURL,
@@ -170,7 +183,8 @@ final class BiliAPIClient {
             form: form,
             query: query,
             headers: headers,
-            signedByWBI: signedByWBI
+            signedByWBI: signedByWBI,
+            includeCookies: includeCookies
         ) as? [String: Any] else {
             throw APIError.invalidPayload
         }
@@ -182,7 +196,8 @@ final class BiliAPIClient {
         path: String,
         query: [String: String] = [:],
         headers: [String: String] = [:],
-        signedByWBI: Bool = false
+        signedByWBI: Bool = false,
+        includeCookies: Bool = true
     ) async throws -> [[String: Any]] {
         JSONValue.dictionaries(
             try await requestEnvelopeValue(
@@ -190,7 +205,8 @@ final class BiliAPIClient {
                 path: path,
                 query: query,
                 headers: headers,
-                signedByWBI: signedByWBI
+                signedByWBI: signedByWBI,
+                includeCookies: includeCookies
             )
         )
     }
@@ -210,7 +226,8 @@ final class BiliAPIClient {
         query: [String: String],
         headers: [String: String],
         body: Data?,
-        signedByWBI: Bool
+        signedByWBI: Bool,
+        includeCookies: Bool
     ) async throws -> Any {
         var finalQuery = query
         if signedByWBI {
@@ -232,6 +249,7 @@ final class BiliAPIClient {
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.httpBody = body
+        request.httpShouldHandleCookies = includeCookies
         headers.forEach { request.setValue($1, forHTTPHeaderField: $0) }
 
         let (data, response) = try await session.data(for: request)
@@ -241,7 +259,9 @@ final class BiliAPIClient {
         }
 
         do {
-            return try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
+            return try await Task.detached(priority: .utility) {
+                try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
+            }.value
         } catch {
             throw APIError.decoding(L10n.invalidJSON(error.localizedDescription))
         }

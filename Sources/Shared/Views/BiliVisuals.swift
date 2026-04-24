@@ -23,19 +23,19 @@ struct BiliBackground<Content: View>: View {
             Circle()
                 .fill(Color("AccentColor").opacity(0.12))
                 .frame(width: 260, height: 260)
-                .blur(radius: 40)
+                .blur(radius: 26)
                 .offset(x: -150, y: -250)
 
             Circle()
                 .fill(Color.orange.opacity(0.08))
                 .frame(width: 240, height: 240)
-                .blur(radius: 34)
+                .blur(radius: 22)
                 .offset(x: 160, y: -160)
 
             RoundedRectangle(cornerRadius: 120, style: .continuous)
                 .fill(Color.white.opacity(0.18))
                 .frame(width: 360, height: 160)
-                .blur(radius: 28)
+                .blur(radius: 18)
                 .offset(x: 100, y: 320)
 
             content
@@ -127,6 +127,7 @@ struct BiliSymbolOrb: View {
     let systemImage: String
     var tint: Color = Color("AccentColor")
     var size: CGFloat = 44
+    var lightweight = false
 
     var body: some View {
         Image(systemName: systemImage)
@@ -141,8 +142,14 @@ struct BiliSymbolOrb: View {
                 Circle()
                     .stroke(Color.black.opacity(0.05), lineWidth: 0.8)
             )
-            .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
-            .modifier(BiliGlassSurfaceModifier(cornerRadius: size / 2, tint: tint, interactive: true))
+            .shadow(color: Color.black.opacity(lightweight ? 0.025 : 0.05), radius: lightweight ? 4 : 10, x: 0, y: lightweight ? 2 : 4)
+            .modifier(
+                BiliGlassSurfaceModifier(
+                    cornerRadius: size / 2,
+                    tint: tint,
+                    interactive: !lightweight
+                )
+            )
     }
 }
 
@@ -156,7 +163,7 @@ struct BiliQuickActionTile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top) {
-                BiliSymbolOrb(systemImage: systemImage, tint: tint)
+                BiliSymbolOrb(systemImage: systemImage, tint: tint, lightweight: true)
 
                 Spacer(minLength: 8)
 
@@ -183,7 +190,7 @@ struct BiliQuickActionTile: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
-        .biliCardStyle(tint: tint.opacity(0.5), interactive: true)
+        .biliListCardStyle(tint: tint, interactive: true)
     }
 }
 
@@ -224,7 +231,7 @@ struct BiliCardModifier: ViewModifier {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .stroke(Color.black.opacity(0.05), lineWidth: 0.8)
                 )
-                .shadow(color: Color.black.opacity(shadowOpacity * 0.9), radius: 14, x: 0, y: 8)
+                .shadow(color: Color.black.opacity(shadowOpacity * 0.9), radius: 10, x: 0, y: 6)
         } else {
             content
                 .background(
@@ -235,8 +242,63 @@ struct BiliCardModifier: ViewModifier {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .stroke(Color.black.opacity(0.05), lineWidth: 0.8)
                 )
-                .shadow(color: Color.black.opacity(shadowOpacity * 0.9), radius: 14, x: 0, y: 8)
+                .shadow(color: Color.black.opacity(shadowOpacity * 0.9), radius: 10, x: 0, y: 6)
         }
+    }
+}
+
+struct BiliListCardModifier: ViewModifier {
+    let cornerRadius: CGFloat
+    let tint: Color
+    let interactive: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Color(.systemBackground).opacity(0.86))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(tint.opacity(0.08), lineWidth: 0.8)
+            )
+            .shadow(color: Color.black.opacity(interactive ? 0.04 : 0.02), radius: 5, x: 0, y: 3)
+    }
+}
+
+struct BiliHeroCardModifier: ViewModifier {
+    let cornerRadius: CGFloat
+    let tint: Color
+    let shadowOpacity: Double
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(tint.opacity(0.12), lineWidth: 0.8)
+            )
+            .shadow(color: Color.black.opacity(shadowOpacity), radius: 8, x: 0, y: 4)
+    }
+}
+
+struct BiliPanelCardModifier: ViewModifier {
+    let cornerRadius: CGFloat
+    let tint: Color
+    let interactive: Bool
+    let shadowOpacity: Double
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Color(.systemBackground).opacity(0.82))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(tint.opacity(0.1), lineWidth: 0.9)
+            )
+            .shadow(color: Color.black.opacity(shadowOpacity * 0.82), radius: 8, x: 0, y: 4)
+            .opacity(interactive ? 1 : 0.98)
     }
 }
 
@@ -327,5 +389,49 @@ extension View {
 
     func biliSecondaryActionButton(fillWidth: Bool = true) -> some View {
         modifier(BiliActionButtonModifier(variant: .secondary, fillWidth: fillWidth))
+    }
+
+    func biliPanelCardStyle(
+        cornerRadius: CGFloat = 28,
+        tint: Color = .white,
+        interactive: Bool = false,
+        shadowOpacity: Double = 0.08
+    ) -> some View {
+        modifier(
+            BiliPanelCardModifier(
+                cornerRadius: cornerRadius,
+                tint: tint,
+                interactive: interactive,
+                shadowOpacity: shadowOpacity
+            )
+        )
+    }
+
+    func biliListCardStyle(
+        cornerRadius: CGFloat = 24,
+        tint: Color = Color("AccentColor"),
+        interactive: Bool = false
+    ) -> some View {
+        modifier(
+            BiliListCardModifier(
+                cornerRadius: cornerRadius,
+                tint: tint,
+                interactive: interactive
+            )
+        )
+    }
+
+    func biliHeroCardStyle(
+        cornerRadius: CGFloat = 28,
+        tint: Color = Color("AccentColor"),
+        shadowOpacity: Double = 0.06
+    ) -> some View {
+        modifier(
+            BiliHeroCardModifier(
+                cornerRadius: cornerRadius,
+                tint: tint,
+                shadowOpacity: shadowOpacity
+            )
+        )
     }
 }

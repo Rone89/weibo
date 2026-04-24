@@ -1,3 +1,4 @@
+import ImageIO
 import SwiftUI
 import UIKit
 
@@ -28,9 +29,15 @@ struct AsyncPosterImage: View {
         }
         .frame(maxWidth: width ?? .infinity, minHeight: height, maxHeight: height)
         .background(Color(.secondarySystemBackground))
+        .clipped()
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .task(id: normalizedURLString) {
-            await loader.load(from: normalizedURLString)
+            let targetWidth = width ?? max(height * 2, 240)
+            await loader.load(
+                from: normalizedURLString,
+                targetSize: CGSize(width: targetWidth, height: height),
+                scale: UIScreen.main.scale
+            )
         }
     }
 
@@ -65,12 +72,14 @@ private final class PosterImageLoader: ObservableObject {
     }
 
     @Published private(set) var phase: Phase = .empty
+    private var lastLoadedURLString: String?
 
     private static let session: URLSession = {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 15
         configuration.timeoutIntervalForResource = 20
         configuration.requestCachePolicy = .returnCacheDataElseLoad
+        configuration.waitsForConnectivity = false
         configuration.httpMaximumConnectionsPerHost = 10
         configuration.urlCache = URLCache(
             memoryCapacity: 96 * 1024 * 1024,
@@ -80,14 +89,20 @@ private final class PosterImageLoader: ObservableObject {
         return URLSession(configuration: configuration)
     }()
 
-    func load(from urlString: String?) async {
+    func load(from urlString: String?, targetSize: CGSize?, scale: CGFloat) async {
         guard let urlString,
               !urlString.isEmpty,
               let url = URL(string: urlString) else {
+            lastLoadedURLString = nil
             phase = .empty
             return
         }
 
+        if lastLoadedURLString == urlString, case .success = phase {
+            return
+        }
+
+        lastLoadedURLString = urlString
         phase = .loading
 
         var request = URLRequest(url: url)
@@ -98,17 +113,49 @@ private final class PosterImageLoader: ObservableObject {
         do {
             let (data, response) = try await Self.session.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse,
-                  200..<300 ~= httpResponse.statusCode,
-                  let image = UIImage(data: data) else {
+                  200..<300 ~= httpResponse.statusCode else {
                 phase = .failure
                 return
             }
 
+            let image = try await Task.detached(priority: .utility) {
+                Self.decodeImage(from: data, targetSize: targetSize, scale: scale)
+            }.value
+
+            guard lastLoadedURLString == urlString else { return }
+            guard let image else {
+                phase = .failure
+                return
+            }
             phase = .success(image)
         } catch is CancellationError {
             return
         } catch {
             phase = .failure
         }
+    }
+
+    private static func decodeImage(from data: Data, targetSize: CGSize?, scale: CGFloat) -> UIImage? {
+        let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else {
+            return UIImage(data: data)
+        }
+
+        let maxDimension = max(targetSize?.width ?? 0, targetSize?.height ?? 0) * max(scale, 1)
+        if maxDimension > 0 {
+            let thumbnailOptions: [CFString: Any] = [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceShouldCacheImmediately: true,
+                kCGImageSourceShouldCache: true,
+                kCGImageSourceThumbnailMaxPixelSize: max(120, Int(maxDimension.rounded()))
+            ]
+
+            if let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbnailOptions as CFDictionary) {
+                return UIImage(cgImage: thumbnail)
+            }
+        }
+
+        return UIImage(data: data)
     }
 }

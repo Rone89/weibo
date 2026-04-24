@@ -224,6 +224,7 @@ struct FavoriteFolder: Identifiable, Hashable {
     let mediaCount: Int
     let coverURL: String?
     let intro: String?
+    let favState: Int?
 
     init(json: [String: Any]) {
         self.id = JSONValue.int(json["id"]) ?? 0
@@ -231,6 +232,7 @@ struct FavoriteFolder: Identifiable, Hashable {
         self.mediaCount = JSONValue.int(json["media_count"]) ?? 0
         self.coverURL = JSONValue.string(json["cover"])?.normalizedBiliURLString
         self.intro = JSONValue.string(json["intro"])
+        self.favState = JSONValue.int(json["fav_state"])
     }
 }
 
@@ -262,8 +264,11 @@ struct VideoDetail: Hashable {
     let authorID: Int?
     let authorAvatarURL: String?
     let viewCount: Int?
-    let likeCount: Int?
-    let danmakuCount: Int?
+    var likeCount: Int?
+    var danmakuCount: Int?
+    var favoriteCount: Int?
+    var coinCount: Int?
+    let copyright: Int?
     let pages: [VideoDetailPage]
 
     init(json: [String: Any]) {
@@ -286,6 +291,27 @@ struct VideoDetail: Hashable {
         self.viewCount = JSONValue.int(stat?["view"])
         self.likeCount = JSONValue.int(stat?["like"])
         self.danmakuCount = JSONValue.int(stat?["danmaku"])
+        self.favoriteCount = JSONValue.int(stat?["favorite"])
+        self.coinCount = JSONValue.int(stat?["coin"])
+        self.copyright = JSONValue.int(json["copyright"])
         self.pages = JSONValue.dictionaries(json["pages"]).map(VideoDetailPage.init)
+    }
+}
+
+struct VideoRelationState: Hashable {
+    var attention: Bool
+    var favorite: Bool
+    var seasonFavorite: Bool
+    var like: Bool
+    var dislike: Bool
+    var coin: Int
+
+    init(json: [String: Any]) {
+        self.attention = JSONValue.bool(json["attention"]) ?? false
+        self.favorite = JSONValue.bool(json["favorite"]) ?? false
+        self.seasonFavorite = JSONValue.bool(json["season_fav"]) ?? false
+        self.like = JSONValue.bool(json["like"]) ?? false
+        self.dislike = JSONValue.bool(json["dislike"]) ?? false
+        self.coin = JSONValue.int(json["coin"]) ?? 0
     }
 }

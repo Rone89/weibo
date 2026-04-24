@@ -45,6 +45,7 @@ private struct ContinueWatchingSpotlightCard: View {
         ZStack(alignment: .bottomLeading) {
             AsyncPosterImage(urlString: record.coverURL, width: nil, height: 220)
                 .frame(maxWidth: .infinity)
+                .drawingGroup(opaque: true)
                 .overlay(alignment: .bottomLeading) {
                     GeometryReader { proxy in
                         VStack {
@@ -104,7 +105,7 @@ private struct ContinueWatchingSpotlightCard: View {
             .padding(20)
         }
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .biliCardStyle(cornerRadius: 28, tint: tint.opacity(0.24), interactive: true)
+        .biliHeroCardStyle(cornerRadius: 28, tint: tint)
     }
 
     private func shelfPill(_ text: String, systemImage: String) -> some View {
@@ -156,6 +157,6 @@ private struct ContinueWatchingCompactCard: View {
         }
         .frame(width: 224, alignment: .leading)
         .padding(12)
-        .biliCardStyle(tint: tint.opacity(0.2), interactive: true)
+        .biliListCardStyle(tint: tint, interactive: true)
     }
 }

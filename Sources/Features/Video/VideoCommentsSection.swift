@@ -91,6 +91,9 @@ struct VideoCommentsSection: View {
                     ForEach(viewModel.replies) { comment in
                         VideoCommentCard(
                             comment: comment,
+                            onLike: {
+                                Task { await viewModel.toggleLike(for: comment) }
+                            },
                             onReply: {
                                 composeTarget = .reply(
                                     comment: comment,
@@ -184,7 +187,7 @@ struct VideoCommentsSection: View {
                 subtitle: L10n.videoCommentsPinnedSubtitle(viewModel.topReplies.count),
                 actionTitle: isPinnedExpanded ? L10n.videoCommentsCollapseText : L10n.videoCommentsExpandText,
                 action: {
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                    withAnimation(.easeInOut(duration: 0.16)) {
                         isPinnedExpanded.toggle()
                     }
                 }
@@ -196,6 +199,9 @@ struct VideoCommentsSection: View {
                         VideoCommentCard(
                             comment: comment,
                             isPinned: true,
+                            onLike: {
+                                Task { await viewModel.toggleLike(for: comment) }
+                            },
                             onReply: {
                                 composeTarget = .reply(
                                     comment: comment,
@@ -283,6 +289,7 @@ private struct VideoCommentCard: View {
     let comment: VideoComment
     var isPinned = false
     var showsPreviewReplies = true
+    let onLike: () -> Void
     let onReply: () -> Void
     let onOpenThread: (() -> Void)?
     @State private var isExpanded = false
@@ -321,7 +328,7 @@ private struct VideoCommentCard: View {
 
                         if needsExpansion {
                             Button(isExpanded ? L10n.videoCommentsCollapseText : L10n.videoCommentsExpandText) {
-                                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                                withAnimation(.easeInOut(duration: 0.16)) {
                                     isExpanded.toggle()
                                 }
                             }
@@ -340,9 +347,15 @@ private struct VideoCommentCard: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Label(BiliFormatting.compactCount(comment.likeCount), systemImage: "hand.thumbsup")
+                Button(action: onLike) {
+                    Label(
+                        BiliFormatting.compactCount(comment.likeCount),
+                        systemImage: comment.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup"
+                    )
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(comment.isLiked ? Color("AccentColor") : .secondary)
+                }
+                .buttonStyle(.plain)
 
                 if comment.replyCount > 0 {
                     Label(BiliFormatting.compactCount(comment.replyCount), systemImage: "bubble.left")
@@ -383,11 +396,11 @@ private struct VideoCommentCard: View {
                     }
                 }
                 .padding(12)
-                .biliCardStyle(cornerRadius: 20, tint: .blue.opacity(0.14), shadowOpacity: 0.02)
+                .biliListCardStyle(cornerRadius: 20, tint: .blue)
             }
         }
         .padding(16)
-        .biliCardStyle(cornerRadius: 24, tint: isPinned ? .pink.opacity(0.18) : .white, interactive: false, shadowOpacity: 0.03)
+        .biliListCardStyle(cornerRadius: 24, tint: isPinned ? .pink : Color("AccentColor"))
     }
 
     private var needsExpansion: Bool {
@@ -472,6 +485,9 @@ private struct VideoCommentRepliesSheet: View {
                             comment: rootComment,
                             isPinned: true,
                             showsPreviewReplies: false,
+                            onLike: {
+                                Task { await viewModel.toggleLike(for: rootComment) }
+                            },
                             onReply: {
                                 composeTarget = .reply(
                                     comment: rootComment,
@@ -535,6 +551,9 @@ private struct VideoCommentRepliesSheet: View {
                                 VideoCommentCard(
                                     comment: reply,
                                     showsPreviewReplies: false,
+                                    onLike: {
+                                        Task { await viewModel.toggleLike(for: reply) }
+                                    },
                                     onReply: {
                                         composeTarget = .reply(
                                             comment: reply,
@@ -627,7 +646,7 @@ private struct VideoCommentRepliesSheet: View {
             }
         }
         .padding(16)
-        .biliCardStyle(cornerRadius: 24, tint: .blue.opacity(0.16), shadowOpacity: 0.03)
+        .biliListCardStyle(cornerRadius: 24, tint: .blue)
     }
 }
 

@@ -52,7 +52,7 @@ struct DynamicDetailView: View {
                             replyType: item.commentType ?? 11
                         )
                         .padding(18)
-                        .biliCardStyle()
+                        .biliListCardStyle()
                     }
                 } else if viewModel.isLoading {
                     ProgressView(L10n.dynamicDetailLoading)
@@ -94,6 +94,9 @@ struct DynamicDetailView: View {
             VideoDetailView(
                 viewModel: VideoDetailViewModel(apiClient: viewModel.apiClient, seedVideo: video)
             )
+        }
+        .navigationDestination(for: UserReference.self) { reference in
+            UserProfileView(apiClient: viewModel.apiClient, reference: reference)
         }
     }
 
@@ -142,6 +145,13 @@ struct DynamicDetailView: View {
                 }
 
                 Spacer(minLength: 0)
+
+                if let reference = authorReference(item) {
+                    NavigationLink(value: reference) {
+                        BiliSymbolOrb(systemImage: "person.crop.circle", tint: .blue, size: 38, lightweight: true)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
 
             HStack(spacing: 10) {
@@ -163,7 +173,7 @@ struct DynamicDetailView: View {
             }
         }
         .padding(20)
-        .biliCardStyle(tint: .pink.opacity(0.3), interactive: true)
+        .biliListCardStyle(tint: .pink, interactive: true)
     }
 
     private func readingSection(_ item: DynamicFeedItem) -> some View {
@@ -181,7 +191,7 @@ struct DynamicDetailView: View {
 
                 if needsTextExpansion(item.text) {
                     Button(isExpandedText ? L10n.dynamicCollapseText : L10n.dynamicExpandText) {
-                        withAnimation(.easeInOut(duration: 0.2)) {
+                        withAnimation(.easeInOut(duration: 0.16)) {
                             isExpandedText.toggle()
                         }
                     }
@@ -203,7 +213,7 @@ struct DynamicDetailView: View {
             content()
         }
         .padding(18)
-        .biliCardStyle()
+        .biliListCardStyle()
     }
 
     private func heroMetaChip(_ text: String) -> some View {
@@ -226,5 +236,10 @@ struct DynamicDetailView: View {
 
     private func needsTextExpansion(_ text: String) -> Bool {
         text.count > 220
+    }
+
+    private func authorReference(_ item: DynamicFeedItem) -> UserReference? {
+        guard let mid = item.author.mid, mid > 0 else { return nil }
+        return UserReference(mid: mid, name: item.author.name, avatarURL: item.author.avatarURL)
     }
 }

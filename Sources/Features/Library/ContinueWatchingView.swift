@@ -128,7 +128,7 @@ struct ContinueWatchingView: View {
             }
         }
         .padding(18)
-        .biliCardStyle(tint: Color("AccentColor").opacity(0.22), interactive: true)
+        .biliListCardStyle(tint: Color("AccentColor"), interactive: true)
     }
 
     private func footer(for record: PlaybackProgressRecord) -> some View {

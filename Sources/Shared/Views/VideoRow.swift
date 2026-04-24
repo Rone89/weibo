@@ -55,7 +55,7 @@ struct VideoRow: View {
             Spacer(minLength: 0)
         }
         .padding(14)
-        .biliCardStyle()
+        .biliListCardStyle(interactive: true)
     }
 
     private func miniStat(text: String, icon: String) -> some View {

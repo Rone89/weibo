@@ -99,7 +99,7 @@ struct QRCodeLoginPane: View {
             }
         }
         .padding(20)
-        .biliCardStyle()
+        .biliListCardStyle()
     }
 
     private var instructionsCard: some View {
@@ -112,7 +112,7 @@ struct QRCodeLoginPane: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(18)
-        .biliCardStyle()
+        .biliListCardStyle()
     }
 
     private func messageCard(text: String, tint: Color) -> some View {

@@ -43,6 +43,6 @@ struct EmptyStateView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 36)
         .padding(.horizontal, 20)
-        .biliCardStyle(tint: Color("AccentColor").opacity(0.18))
+        .biliListCardStyle(tint: Color("AccentColor"))
     }
 }

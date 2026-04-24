@@ -65,11 +65,6 @@ struct LibraryHubView: View {
             .task {
                 await viewModel.loadIfNeeded()
             }
-            .onAppear {
-                Task {
-                    await viewModel.loadIfNeeded()
-                }
-            }
             .refreshable {
                 await viewModel.reload()
             }
@@ -104,12 +99,12 @@ struct LibraryHubView: View {
 
                 HStack(spacing: 10) {
                     Button(action: onTapSearch) {
-                        BiliSymbolOrb(systemImage: "magnifyingglass")
+                        BiliSymbolOrb(systemImage: "magnifyingglass", lightweight: true)
                     }
                     .buttonStyle(.plain)
 
                     Button(action: onTapProfile) {
-                        BiliSymbolOrb(systemImage: "person.crop.circle")
+                        BiliSymbolOrb(systemImage: "person.crop.circle", lightweight: true)
                     }
                     .buttonStyle(.plain)
                 }
@@ -122,7 +117,7 @@ struct LibraryHubView: View {
             }
         }
         .padding(20)
-        .biliCardStyle(tint: Color("AccentColor").opacity(0.35), interactive: true)
+        .biliPanelCardStyle(tint: Color("AccentColor").opacity(0.35), interactive: true)
     }
 
     private var quickActionsSection: some View {
@@ -279,7 +274,7 @@ struct LibraryHubView: View {
             }
         }
         .padding(18)
-        .biliCardStyle(tint: Color("AccentColor").opacity(0.28))
+        .biliPanelCardStyle(tint: Color("AccentColor").opacity(0.28))
     }
 
     private var loginPrompt: some View {
@@ -302,7 +297,7 @@ struct LibraryHubView: View {
             }
         }
         .padding(18)
-        .biliCardStyle(tint: .pink.opacity(0.3), interactive: true)
+        .biliPanelCardStyle(tint: .pink.opacity(0.3), interactive: true)
     }
 
     private var quickActionColumns: [GridItem] {
@@ -325,7 +320,7 @@ struct LibraryHubView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .biliCardStyle(tint: .white, interactive: true, shadowOpacity: 0.04)
+        .biliListCardStyle(tint: .blue, interactive: true)
     }
 }
 
@@ -358,7 +353,7 @@ private struct LibraryFavoriteFolderCard: View {
         }
         .frame(width: 236, alignment: .leading)
         .padding(12)
-        .biliCardStyle(tint: .orange.opacity(0.24), interactive: true)
+        .biliListCardStyle(tint: .orange, interactive: true)
     }
 }
 
@@ -369,6 +364,7 @@ private struct LibraryFavoriteSpotlightCard: View {
         ZStack(alignment: .bottomLeading) {
             AsyncPosterImage(urlString: folder.coverURL, width: nil, height: 210)
                 .frame(maxWidth: .infinity)
+                .drawingGroup(opaque: true)
 
             LinearGradient(
                 colors: [.clear, .black.opacity(0.7)],
@@ -395,6 +391,6 @@ private struct LibraryFavoriteSpotlightCard: View {
             .padding(18)
         }
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .biliCardStyle(cornerRadius: 28, tint: .orange.opacity(0.28), interactive: true)
+        .biliHeroCardStyle(cornerRadius: 28, tint: .orange)
     }
 }

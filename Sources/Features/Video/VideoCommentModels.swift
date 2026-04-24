@@ -53,7 +53,8 @@ struct VideoComment: Identifiable, Hashable {
     let parentID: String?
     let author: VideoCommentAuthor
     let message: String
-    let likeCount: Int
+    var likeCount: Int
+    var isLiked: Bool
     let replyCount: Int
     let previewReplies: [VideoComment]
     let publishedAt: Date?
@@ -86,12 +87,21 @@ struct VideoComment: Identifiable, Hashable {
         self.author = VideoCommentAuthor(json: member)
         self.message = HTMLSanitizer.plainText(JSONValue.string(content["message"]))
         self.likeCount = JSONValue.int(json["like"]) ?? 0
+        self.isLiked = (JSONValue.int(json["action"]) ?? 0) == 1
         self.replyCount = JSONValue.int(json["rcount"]) ?? JSONValue.int(json["count"]) ?? 0
         self.previewReplies = JSONValue.dictionaries(json["replies"]).map(VideoComment.init)
         self.publishedAt = JSONValue.int(json["ctime"]).map { Date(timeIntervalSince1970: TimeInterval($0)) }
         self.timeLabel = JSONValue.string(replyControl["time_desc"])
         self.replySummaryLabel = JSONValue.string(replyControl["sub_reply_entry_text"])
         self.parentReplyUserName = JSONValue.string(parentReplyMember?["name"])
+    }
+
+    func toggledLikeState(to isLiked: Bool) -> VideoComment {
+        var copy = self
+        guard copy.isLiked != isLiked else { return copy }
+        copy.isLiked = isLiked
+        copy.likeCount = max(0, copy.likeCount + (isLiked ? 1 : -1))
+        return copy
     }
 }
 

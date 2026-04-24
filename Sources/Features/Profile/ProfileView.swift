@@ -2,10 +2,12 @@ import SwiftUI
 
 struct ProfileView: View {
     @StateObject private var viewModel: ProfileViewModel
+    @ObservedObject private var preferencesStore: AppPreferencesStore
     @State private var isPresentingCookieEditor = false
     @State private var isPresentingWebLogin = false
 
     init(apiClient: BiliAPIClient, sessionStore: SessionStore) {
+        _preferencesStore = ObservedObject(wrappedValue: apiClient.preferencesStore)
         _viewModel = StateObject(
             wrappedValue: ProfileViewModel(apiClient: apiClient, sessionStore: sessionStore)
         )
@@ -21,6 +23,7 @@ struct ProfileView: View {
                         if viewModel.hasLoadedContent {
                             profileHero
                             sessionInsightSection
+                            browsingModeSection
                             quickSummary
                             actionGrid
                             loginSyncSection
@@ -38,6 +41,7 @@ struct ProfileView: View {
                         }
                     } else {
                         loginGuide
+                        browsingModeSection
                     }
 
                     if let errorMessage = viewModel.errorMessage {
@@ -111,14 +115,14 @@ struct ProfileView: View {
                 Button {
                     isPresentingWebLogin = true
                 } label: {
-                    BiliSymbolOrb(systemImage: "safari", tint: .blue)
+                    BiliSymbolOrb(systemImage: "safari", tint: .blue, lightweight: true)
                 }
                 .buttonStyle(.plain)
 
                 Button {
                     isPresentingCookieEditor = true
                 } label: {
-                    BiliSymbolOrb(systemImage: "key.fill", tint: Color("AccentColor"))
+                    BiliSymbolOrb(systemImage: "key.fill", tint: Color("AccentColor"), lightweight: true)
                 }
                 .buttonStyle(.plain)
             }
@@ -144,7 +148,7 @@ struct ProfileView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(18)
-        .biliCardStyle(tint: .blue.opacity(0.24))
+        .biliPanelCardStyle(tint: .blue.opacity(0.24))
     }
 
     private var profileHero: some View {
@@ -193,7 +197,7 @@ struct ProfileView: View {
             }
         }
         .padding(20)
-        .biliCardStyle(tint: .pink.opacity(0.34), interactive: true)
+        .biliPanelCardStyle(tint: .pink.opacity(0.34), interactive: true)
     }
 
     private var quickSummary: some View {
@@ -229,6 +233,49 @@ struct ProfileView: View {
         }
     }
 
+    private var browsingModeSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            BiliSectionHeader(title: L10n.browsingModeTitle, subtitle: L10n.browsingModeSubtitle)
+
+            Toggle(isOn: Binding(
+                get: { preferencesStore.isGuestRecommendationEnabled },
+                set: { preferencesStore.setGuestRecommendationEnabled($0) }
+            )) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L10n.guestModeTitle)
+                        .font(.subheadline.weight(.semibold))
+                    Text(L10n.guestModeSubtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Toggle(isOn: Binding(
+                get: { preferencesStore.isIncognitoPlaybackEnabled },
+                set: { preferencesStore.setIncognitoPlaybackEnabled($0) }
+            )) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L10n.incognitoPlaybackTitle)
+                        .font(.subheadline.weight(.semibold))
+                    Text(L10n.incognitoPlaybackSubtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            HStack(spacing: 10) {
+                if preferencesStore.isGuestRecommendationEnabled {
+                    BiliMetricPill(text: L10n.guestModeTitle, systemImage: "person.crop.circle.badge.questionmark", tint: .blue)
+                }
+                if preferencesStore.isIncognitoPlaybackEnabled {
+                    BiliMetricPill(text: L10n.incognitoPlaybackTitle, systemImage: "eye.slash.fill", tint: .pink)
+                }
+            }
+        }
+        .padding(18)
+        .biliListCardStyle(tint: .blue)
+    }
+
     private var sessionInsightSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             BiliSectionHeader(title: L10n.profileSessionTitle, subtitle: L10n.profileSessionSubtitle)
@@ -255,7 +302,7 @@ struct ProfileView: View {
             }
         }
         .padding(18)
-        .biliCardStyle(tint: .blue.opacity(0.18))
+        .biliPanelCardStyle(tint: .blue.opacity(0.18))
     }
 
     private var actionGrid: some View {
@@ -338,7 +385,7 @@ struct ProfileView: View {
             }
         }
         .padding(18)
-        .biliCardStyle(tint: .orange.opacity(0.24))
+        .biliPanelCardStyle(tint: .orange.opacity(0.24))
     }
 
     private var loginGuide: some View {
@@ -373,7 +420,7 @@ struct ProfileView: View {
             }
         }
         .padding(20)
-        .biliCardStyle(tint: .pink.opacity(0.32), interactive: true)
+        .biliPanelCardStyle(tint: .pink.opacity(0.32), interactive: true)
     }
 
     private var actionColumns: [GridItem] {
@@ -419,7 +466,7 @@ struct ProfileView: View {
     private func summaryCard(title: String, value: String, systemImage: String, tint: Color) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                BiliSymbolOrb(systemImage: systemImage, tint: tint, size: 36)
+                BiliSymbolOrb(systemImage: systemImage, tint: tint, size: 36, lightweight: true)
                 Spacer(minLength: 8)
             }
 
@@ -434,7 +481,7 @@ struct ProfileView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .biliCardStyle(tint: tint.opacity(0.16), interactive: true, shadowOpacity: 0.05)
+        .biliListCardStyle(tint: tint, interactive: true)
     }
 
     private func profileBadge(_ text: String) -> some View {

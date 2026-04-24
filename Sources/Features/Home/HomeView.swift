@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HomeView: View {
     @StateObject private var viewModel: HomeViewModel
+    @ObservedObject private var preferencesStore: AppPreferencesStore
     private let apiClient: BiliAPIClient
     private let onTapSearch: () -> Void
     private let onTapDynamic: () -> Void
@@ -16,6 +17,7 @@ struct HomeView: View {
         onTapProfile: @escaping () -> Void
     ) {
         self.apiClient = apiClient
+        self._preferencesStore = ObservedObject(wrappedValue: apiClient.preferencesStore)
         self.onTapSearch = onTapSearch
         self.onTapDynamic = onTapDynamic
         self.onTapHistory = onTapHistory
@@ -31,6 +33,8 @@ struct HomeView: View {
                     featuredCarousel
                     quickActions
                     feedSelector
+                    liveSection
+                    bangumiSection
 
                     if let errorMessage = viewModel.errorMessage {
                         Text(errorMessage)
@@ -46,7 +50,7 @@ struct HomeView: View {
                         ProgressView(L10n.homeLoading)
                             .frame(maxWidth: .infinity, alignment: .center)
                             .padding(.vertical, 32)
-                    } else if currentVideos.isEmpty {
+                    } else if currentVideos.isEmpty && !hasSupplementalSections {
                         EmptyStateView(
                             title: L10n.homeEmptyTitle,
                             subtitle: L10n.homeEmptySubtitle,
@@ -56,7 +60,7 @@ struct HomeView: View {
                                 Task { await viewModel.reload() }
                             }
                         )
-                    } else {
+                    } else if !currentVideos.isEmpty {
                         highlightsSection
                         feedSection
                     }
@@ -74,6 +78,9 @@ struct HomeView: View {
             .task {
                 await viewModel.loadIfNeeded()
             }
+            .onChange(of: preferencesStore.isGuestRecommendationEnabled) { _ in
+                Task { await viewModel.reload() }
+            }
             .refreshable {
                 await viewModel.reload()
             }
@@ -81,6 +88,9 @@ struct HomeView: View {
                 VideoDetailView(
                     viewModel: VideoDetailViewModel(apiClient: apiClient, seedVideo: video)
                 )
+            }
+            .navigationDestination(for: UserReference.self) { reference in
+                UserProfileView(apiClient: apiClient, reference: reference)
             }
         }
     }
@@ -127,6 +137,10 @@ struct HomeView: View {
         }
     }
 
+    private var hasSupplementalSections: Bool {
+        !viewModel.liveHighlights.isEmpty || !viewModel.bangumiHighlights.isEmpty
+    }
+
     private var introPanel: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top) {
@@ -143,12 +157,12 @@ struct HomeView: View {
 
                 HStack(spacing: 10) {
                     Button(action: onTapHistory) {
-                        BiliSymbolOrb(systemImage: "clock.arrow.circlepath")
+                        BiliSymbolOrb(systemImage: "clock.arrow.circlepath", lightweight: true)
                     }
                     .buttonStyle(.plain)
 
                     Button(action: onTapProfile) {
-                        BiliSymbolOrb(systemImage: "person.crop.circle")
+                        BiliSymbolOrb(systemImage: "person.crop.circle", lightweight: true)
                     }
                     .buttonStyle(.plain)
                 }
@@ -167,7 +181,7 @@ struct HomeView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
-                .biliCardStyle(tint: Color("AccentColor").opacity(0.32), interactive: true)
+                .biliPanelCardStyle(tint: Color("AccentColor").opacity(0.32), interactive: true)
             }
             .buttonStyle(.plain)
 
@@ -175,10 +189,13 @@ struct HomeView: View {
                 BiliMetricPill(text: "\(viewModel.recommendedVideos.count) \u{6761}\u{63a8}\u{8350}", systemImage: "play.square.stack")
                 BiliMetricPill(text: "\(viewModel.hotVideos.count) \u{6761}\u{70ed}\u{95e8}", systemImage: "flame.fill", tint: .orange)
                 BiliMetricPill(text: L10n.homeHeroBadge, systemImage: "sparkles.tv", tint: .pink)
+                if preferencesStore.isGuestRecommendationEnabled {
+                    BiliMetricPill(text: L10n.guestModeTitle, systemImage: "person.crop.circle.badge.questionmark", tint: .blue)
+                }
             }
         }
         .padding(20)
-        .biliCardStyle(tint: .pink.opacity(0.34), interactive: true)
+        .biliPanelCardStyle(tint: .pink.opacity(0.34), interactive: true)
     }
 
     @ViewBuilder
@@ -221,7 +238,7 @@ struct HomeView: View {
                     .buttonStyle(.plain)
 
                     Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
+                        withAnimation(.easeInOut(duration: 0.18)) {
                             viewModel.selectedFeed = .hot
                         }
                     } label: {
@@ -281,7 +298,7 @@ struct HomeView: View {
             Button {
                 Task { await viewModel.reload() }
             } label: {
-                BiliSymbolOrb(systemImage: "arrow.clockwise", tint: Color("AccentColor"), size: 40)
+                BiliSymbolOrb(systemImage: "arrow.clockwise", tint: Color("AccentColor"), size: 40, lightweight: true)
             }
             .buttonStyle(.plain)
         }
@@ -300,6 +317,52 @@ struct HomeView: View {
                         }
                         .buttonStyle(.plain)
                     }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var liveSection: some View {
+        if !viewModel.liveHighlights.isEmpty {
+            VStack(alignment: .leading, spacing: 14) {
+                BiliSectionHeader(title: L10n.homeLiveTitle, subtitle: L10n.homeLiveSubtitle)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 14) {
+                        ForEach(viewModel.liveHighlights) { item in
+                            if let reference = item.streamerReference {
+                                NavigationLink(value: reference) {
+                                    HomeLiveCard(item: item)
+                                        .frame(width: 240)
+                                }
+                                .buttonStyle(.plain)
+                            } else {
+                                HomeLiveCard(item: item)
+                                    .frame(width: 240)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var bangumiSection: some View {
+        if !viewModel.bangumiHighlights.isEmpty {
+            VStack(alignment: .leading, spacing: 14) {
+                BiliSectionHeader(title: L10n.homeBangumiTitle, subtitle: L10n.homeBangumiSubtitle)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 14) {
+                        ForEach(viewModel.bangumiHighlights) { item in
+                            HomeBangumiCard(item: item)
+                                .frame(width: 208)
+                        }
+                    }
+                    .padding(.vertical, 2)
                 }
             }
         }
@@ -343,7 +406,7 @@ struct HomeView: View {
 
     private func feedChip(for mode: HomeViewModel.FeedMode, systemImage: String) -> some View {
         Button {
-            withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+            withAnimation(.easeInOut(duration: 0.18)) {
                 viewModel.selectedFeed = mode
             }
         } label: {
@@ -393,6 +456,74 @@ struct HomeView: View {
     }
 }
 
+private struct HomeLiveCard: View {
+    let item: HomeLiveSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            AsyncPosterImage(urlString: item.coverURL, width: nil, height: 140)
+                .frame(maxWidth: .infinity)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(item.title)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+
+                Text(item.streamerName)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color("AccentColor"))
+                    .lineLimit(1)
+
+                if let areaName = item.areaName, !areaName.isEmpty {
+                    Text(areaName)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            .padding(.horizontal, 4)
+        }
+        .padding(12)
+        .biliListCardStyle(tint: .pink, interactive: true)
+    }
+}
+
+private struct HomeBangumiCard: View {
+    let item: HomeBangumiSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            AsyncPosterImage(urlString: item.coverURL, width: nil, height: 172)
+                .frame(maxWidth: .infinity)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(item.title)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+
+                if let updateLabel = item.updateLabel, !updateLabel.isEmpty {
+                    Text(updateLabel)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color("AccentColor"))
+                        .lineLimit(1)
+                }
+
+                if let ratingLabel = item.ratingLabel, !ratingLabel.isEmpty {
+                    Text(ratingLabel)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            .padding(.horizontal, 4)
+        }
+        .padding(12)
+        .biliListCardStyle(tint: .orange, interactive: true)
+    }
+}
+
 private struct HomeFeaturedCard: View {
     let video: VideoSummary
 
@@ -400,6 +531,7 @@ private struct HomeFeaturedCard: View {
         ZStack(alignment: .bottomLeading) {
             AsyncPosterImage(urlString: video.coverURL, width: nil, height: 248)
                 .frame(maxWidth: .infinity)
+                .drawingGroup(opaque: true)
 
             LinearGradient(
                 colors: [.clear, .black.opacity(0.72)],
@@ -437,7 +569,7 @@ private struct HomeFeaturedCard: View {
             .padding(20)
         }
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .biliCardStyle(cornerRadius: 28, tint: .pink.opacity(0.28), interactive: true)
+        .biliHeroCardStyle(cornerRadius: 28, tint: .pink)
     }
 }
 
@@ -463,6 +595,6 @@ private struct HomeCompactVideoCard: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .biliCardStyle(tint: .blue.opacity(0.2), interactive: true)
+        .biliListCardStyle(tint: .blue, interactive: true)
     }
 }

@@ -49,12 +49,19 @@ struct SearchView: View {
                 await viewModel.loadLandingIfNeeded()
             }
             .refreshable {
-                await viewModel.reloadLanding()
+                if viewModel.hasCommittedSearch {
+                    await viewModel.submitSearch()
+                } else {
+                    await viewModel.reloadLanding()
+                }
             }
             .navigationDestination(for: VideoSummary.self) { video in
                 VideoDetailView(
                     viewModel: VideoDetailViewModel(apiClient: apiClient, seedVideo: video)
                 )
+            }
+            .navigationDestination(for: UserReference.self) { reference in
+                UserProfileView(apiClient: apiClient, reference: reference)
             }
         }
     }
@@ -73,7 +80,7 @@ struct SearchView: View {
 
                 Spacer(minLength: 12)
 
-                BiliSymbolOrb(systemImage: "sparkle.magnifyingglass", tint: .blue, size: 42)
+                BiliSymbolOrb(systemImage: "sparkle.magnifyingglass", tint: .blue, size: 42, lightweight: true)
             }
 
             HStack(spacing: 10) {
@@ -101,7 +108,7 @@ struct SearchView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
-                .biliCardStyle(tint: Color("AccentColor").opacity(0.34), interactive: true)
+                .biliPanelCardStyle(tint: Color("AccentColor").opacity(0.34), interactive: true)
 
                 Button(L10n.searchAction) {
                     Task { await viewModel.submitSearch() }
@@ -115,12 +122,13 @@ struct SearchView: View {
                 BiliMetricPill(text: "\(viewModel.trendingKeywords.count) \u{4e2a}\u{70ed}\u{8bcd}", systemImage: "flame.fill", tint: .orange)
                 BiliMetricPill(text: "\(viewModel.history.count) \u{6761}\u{5386}\u{53f2}", systemImage: "clock.arrow.circlepath")
                 if viewModel.hasCommittedSearch {
-                    BiliMetricPill(text: viewModel.query, systemImage: "text.cursor")
+                    BiliMetricPill(text: viewModel.selectedScope.title, systemImage: viewModel.selectedScope.systemImage)
+                    BiliMetricPill(text: L10n.resultsSubtitle(viewModel.totalResultsCount), systemImage: "text.cursor")
                 }
             }
         }
         .padding(20)
-        .biliCardStyle(tint: .blue.opacity(0.3), interactive: true)
+        .biliPanelCardStyle(tint: .blue.opacity(0.3), interactive: true)
     }
 
     private var suggestionPanel: some View {
@@ -133,7 +141,7 @@ struct SearchView: View {
                         viewModel.useKeyword(item.term)
                     } label: {
                         HStack(spacing: 12) {
-                            BiliSymbolOrb(systemImage: "sparkle.magnifyingglass", tint: Color("AccentColor"), size: 38)
+                            BiliSymbolOrb(systemImage: "sparkle.magnifyingglass", tint: Color("AccentColor"), size: 38, lightweight: true)
 
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(item.term)
@@ -151,7 +159,7 @@ struct SearchView: View {
                             Spacer()
                         }
                         .padding(14)
-                        .biliCardStyle(tint: Color("AccentColor").opacity(0.18), interactive: true)
+                        .biliListCardStyle(tint: Color("AccentColor"), interactive: true)
                     }
                     .buttonStyle(.plain)
                 }
@@ -161,10 +169,16 @@ struct SearchView: View {
 
     private var resultSection: some View {
         VStack(alignment: .leading, spacing: 14) {
+            scopeSelector
+
+            if viewModel.selectedScope == .video {
+                videoFilterSection
+            }
+
             HStack(alignment: .center) {
                 BiliSectionHeader(
-                    title: L10n.searchResultTitle,
-                    subtitle: L10n.resultsSubtitle(viewModel.results.count)
+                    title: viewModel.selectedScope.title,
+                    subtitle: L10n.resultsSubtitle(viewModel.totalResultsCount)
                 )
 
                 if viewModel.isSearching {
@@ -180,26 +194,7 @@ struct SearchView: View {
                     systemImage: "magnifyingglass.circle"
                 )
             } else {
-                if let topResult = viewModel.results.first {
-                    NavigationLink(value: topResult) {
-                        SearchBestMatchCard(
-                            query: viewModel.query,
-                            video: topResult
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                if viewModel.results.count > 1 {
-                    LazyVStack(spacing: 14) {
-                        ForEach(Array(viewModel.results.dropFirst())) { video in
-                            NavigationLink(value: video) {
-                                VideoRow(video: video)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
+                resultList
 
                 if viewModel.isLoadingMoreResults {
                     ProgressView(L10n.loadingMore)
@@ -212,6 +207,133 @@ struct SearchView: View {
                     .buttonStyle(.plain)
                     .biliPrimaryActionButton(fillWidth: false)
                     .frame(maxWidth: .infinity, alignment: .center)
+                }
+            }
+        }
+    }
+
+    private var scopeSelector: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(SearchScope.allCases) { scope in
+                    Button {
+                        Task { await viewModel.selectScope(scope) }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: scope.systemImage)
+                            Text(scope.title)
+                            if let count = viewModel.scopeCounts[scope] {
+                                Text(count > 99 ? "99+" : "\(count)")
+                            }
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(viewModel.selectedScope == scope ? .white : .primary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 11)
+                        .background(
+                            Capsule()
+                                .fill(viewModel.selectedScope == scope ? Color("AccentColor") : Color(.systemBackground).opacity(0.72))
+                        )
+                        .overlay(
+                            Capsule()
+                                .stroke(Color.black.opacity(viewModel.selectedScope == scope ? 0 : 0.05), lineWidth: 0.8)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.vertical, 2)
+        }
+    }
+
+    private var videoFilterSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            BiliSectionHeader(
+                title: L10n.searchFilterTitle,
+                subtitle: L10n.searchFilterSubtitle
+            )
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(VideoSearchOrder.allCases) { order in
+                        filterChip(
+                            title: order.title,
+                            isSelected: viewModel.selectedVideoOrder == order
+                        ) {
+                            Task { await viewModel.selectVideoOrder(order) }
+                        }
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(VideoDurationFilter.allCases) { duration in
+                        filterChip(
+                            title: duration.title,
+                            isSelected: viewModel.selectedVideoDuration == duration
+                        ) {
+                            Task { await viewModel.selectVideoDuration(duration) }
+                        }
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+        }
+        .padding(18)
+        .biliListCardStyle(tint: .blue)
+    }
+
+    @ViewBuilder
+    private var resultList: some View {
+        switch viewModel.selectedScope {
+        case .video:
+            videoResultsList
+        case .bangumi:
+            LazyVStack(spacing: 14) {
+                ForEach(bangumiResults) { item in
+                    SearchBangumiCard(item: item)
+                }
+            }
+        case .liveRoom:
+            LazyVStack(spacing: 14) {
+                ForEach(liveResults) { item in
+                    SearchLiveRoomCard(item: item)
+                }
+            }
+        case .user:
+            LazyVStack(spacing: 14) {
+                ForEach(userResults) { item in
+                    NavigationLink(value: item.reference) {
+                        SearchUserCard(item: item)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private var videoResultsList: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if let topResult = videoResults.first {
+                NavigationLink(value: topResult) {
+                    SearchBestMatchCard(
+                        query: viewModel.query,
+                        video: topResult
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+
+            if videoResults.count > 1 {
+                LazyVStack(spacing: 14) {
+                    ForEach(Array(videoResults.dropFirst())) { video in
+                        NavigationLink(value: video) {
+                            VideoRow(video: video)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
         }
@@ -374,6 +496,53 @@ struct SearchView: View {
         .map { $0 }
     }
 
+    private var videoResults: [VideoSummary] {
+        viewModel.results.compactMap { item in
+            guard case let .video(video) = item else { return nil }
+            return video
+        }
+    }
+
+    private var bangumiResults: [SearchBangumiResult] {
+        viewModel.results.compactMap { item in
+            guard case let .bangumi(result) = item else { return nil }
+            return result
+        }
+    }
+
+    private var liveResults: [SearchLiveRoomResult] {
+        viewModel.results.compactMap { item in
+            guard case let .liveRoom(result) = item else { return nil }
+            return result
+        }
+    }
+
+    private var userResults: [SearchUserResult] {
+        viewModel.results.compactMap { item in
+            guard case let .user(result) = item else { return nil }
+            return result
+        }
+    }
+
+    private func filterChip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(isSelected ? .white : .primary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(
+                    Capsule()
+                        .fill(isSelected ? Color("AccentColor") : Color(.systemBackground).opacity(0.72))
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(Color.black.opacity(isSelected ? 0 : 0.05), lineWidth: 0.8)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
 }
 
 private struct SearchBestMatchCard: View {
@@ -399,13 +568,13 @@ private struct SearchBestMatchCard: View {
 
                 Spacer(minLength: 8)
 
-                BiliSymbolOrb(systemImage: "play.rectangle.fill", tint: .orange, size: 48)
+                BiliSymbolOrb(systemImage: "play.rectangle.fill", tint: .orange, size: 48, lightweight: true)
             }
 
             DynamicEmbeddedVideoCard(video: video)
         }
         .padding(18)
-        .biliCardStyle(tint: .orange.opacity(0.24), interactive: true)
+        .biliListCardStyle(tint: .orange, interactive: true)
     }
 }
 
@@ -415,7 +584,7 @@ private struct SearchDiscoveryCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                BiliSymbolOrb(systemImage: "sparkles", tint: .blue, size: 38)
+                BiliSymbolOrb(systemImage: "sparkles", tint: .blue, size: 38, lightweight: true)
                 Spacer(minLength: 8)
                 if let reason = keyword.reason, !reason.isEmpty {
                     Text(reason)
@@ -436,7 +605,7 @@ private struct SearchDiscoveryCard: View {
                 .lineLimit(2)
         }
         .padding(16)
-        .biliCardStyle(tint: .blue.opacity(0.18), interactive: true, shadowOpacity: 0.04)
+        .biliListCardStyle(tint: .blue, interactive: true)
     }
 }
 
@@ -465,7 +634,7 @@ private struct SearchSpotlightCard: View {
             BiliSymbolOrb(systemImage: "arrow.up.right.circle.fill", tint: .orange, size: 52)
         }
         .padding(20)
-        .biliCardStyle(tint: .orange.opacity(0.3), interactive: true)
+        .biliHeroCardStyle(cornerRadius: 28, tint: .orange)
     }
 }
 
@@ -496,7 +665,174 @@ private struct SearchKeywordPanel<Content: View>: View {
             content
         }
         .padding(18)
-        .biliCardStyle(tint: Color("AccentColor").opacity(0.18))
+        .biliListCardStyle(tint: Color("AccentColor"))
+    }
+}
+
+private struct SearchBangumiCard: View {
+    let item: SearchBangumiResult
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            AsyncPosterImage(urlString: item.coverURL, width: 108, height: 144)
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    if let seasonTypeName = item.seasonTypeName, !seasonTypeName.isEmpty {
+                        BiliMetricPill(text: seasonTypeName, systemImage: "sparkles.tv", tint: .orange)
+                    }
+                    if let score = item.score, !score.isEmpty {
+                        BiliMetricPill(text: score, systemImage: "star.fill", tint: .pink)
+                    }
+                }
+
+                Text(item.title)
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+
+                if let indexShow = item.indexShow, !indexShow.isEmpty {
+                    Text(indexShow)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color("AccentColor"))
+                }
+
+                if let description = item.description, !description.isEmpty {
+                    Text(description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(3)
+                }
+
+                let meta = [item.areas, item.styles].compactMap { value in
+                    guard let value, !value.isEmpty else { return nil }
+                    return value
+                }.joined(separator: " / ")
+                if !meta.isEmpty {
+                    Text(meta)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .biliListCardStyle(tint: .orange, interactive: true)
+    }
+}
+
+private struct SearchLiveRoomCard: View {
+    let item: SearchLiveRoomResult
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            AsyncPosterImage(urlString: item.coverURL, width: 132, height: 84)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(item.title)
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+
+                Text(item.streamerName)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color("AccentColor"))
+
+                HStack(spacing: 8) {
+                    if let onlineCount = item.onlineCount {
+                        Label(BiliFormatting.compactCount(onlineCount), systemImage: "dot.radiowaves.left.and.right")
+                    }
+                    if let categoryName = item.categoryName, !categoryName.isEmpty {
+                        Label(categoryName, systemImage: "tv")
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+                let liveMeta = [item.liveTimeLabel, item.tags].compactMap { value in
+                    guard let value, !value.isEmpty else { return nil }
+                    return value
+                }.joined(separator: " / ")
+                if !liveMeta.isEmpty {
+                    Text(liveMeta)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .biliListCardStyle(tint: .pink, interactive: true)
+    }
+}
+
+private struct SearchUserCard: View {
+    let item: SearchUserResult
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            AsyncPosterImage(urlString: item.avatarURL, width: 56, height: 56)
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Text(item.name)
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(.primary)
+
+                    if let level = item.level {
+                        Text(L10n.level(level))
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(Color("AccentColor"))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color("AccentColor").opacity(0.12), in: Capsule())
+                    }
+
+                    if item.isLive {
+                        Text(L10n.searchUserLiveBadge)
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.pink)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.pink.opacity(0.12), in: Capsule())
+                    }
+                }
+
+                if let signature = item.signature, !signature.isEmpty {
+                    Text(signature)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+
+                HStack(spacing: 10) {
+                    if let fansCount = item.fansCount {
+                        Label(BiliFormatting.compactCount(fansCount), systemImage: "person.2.fill")
+                    }
+                    if let videosCount = item.videosCount {
+                        Label(BiliFormatting.compactCount(videosCount), systemImage: "play.rectangle.fill")
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+                if let verifyInfo = item.verifyInfo, !verifyInfo.isEmpty {
+                    Text(verifyInfo)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .biliListCardStyle(tint: .blue, interactive: true)
     }
 }
 

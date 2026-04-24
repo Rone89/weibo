@@ -6,6 +6,7 @@ struct VideoDetailView: View {
     @State private var playerResetSeed = 0
     @State private var shouldIgnoreResume = false
     @State private var isDescriptionExpanded = false
+    @State private var isPresentingFavoritePicker = false
 
     init(viewModel: VideoDetailViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -27,9 +28,7 @@ struct VideoDetailView: View {
                 }
 
                 creatorCard
-                if shouldShowRestartAction {
-                    actionPanel
-                }
+                actionPanel
                 commentsSection
 
                 if let detail = viewModel.detail, !detail.pages.isEmpty {
@@ -112,6 +111,21 @@ struct VideoDetailView: View {
                 viewModel: VideoDetailViewModel(apiClient: viewModel.apiClient, seedVideo: video)
             )
         }
+        .navigationDestination(for: UserReference.self) { reference in
+            UserProfileView(apiClient: viewModel.apiClient, reference: reference)
+        }
+        .sheet(isPresented: $isPresentingFavoritePicker) {
+            FavoritePickerSheet(
+                folders: viewModel.favoriteFolders,
+                isLoading: viewModel.isLoadingFavoriteFolders,
+                onSelect: { folder in
+                    Task { await viewModel.addToFavorites(folder: folder) }
+                },
+                onLoad: {
+                    Task { await viewModel.loadFavoriteFoldersIfNeeded(force: true) }
+                }
+            )
+        }
     }
 
     private func messageCard(text: String, tint: Color) -> some View {
@@ -191,40 +205,39 @@ struct VideoDetailView: View {
                 ProgressView(L10n.nativePlayerResolving)
                     .frame(maxWidth: .infinity, minHeight: 220)
                     .padding(.vertical, 16)
-                    .biliCardStyle()
+                    .biliListCardStyle()
             }
         }
     }
 
     private var headerCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            ZStack(alignment: .bottomLeading) {
-                AsyncPosterImage(
-                    urlString: viewModel.detail?.coverURL ?? viewModel.seedVideo.coverURL,
-                    width: nil,
-                    height: 220
-                )
-                .frame(maxWidth: .infinity)
+        ZStack(alignment: .bottomLeading) {
+            AsyncPosterImage(
+                urlString: viewModel.detail?.coverURL ?? viewModel.seedVideo.coverURL,
+                width: nil,
+                height: 220
+            )
+            .frame(maxWidth: .infinity)
+            .drawingGroup(opaque: true)
 
-                LinearGradient(
-                    colors: [.clear, .black.opacity(0.65)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            LinearGradient(
+                colors: [.clear, .black.opacity(0.65)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
-                VStack(alignment: .leading, spacing: 8) {
-                    BiliMetricPill(text: L10n.nativeReady, systemImage: "play.tv.fill", tint: .white)
-                    Text(currentTitle)
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(.white)
-                        .lineLimit(2)
-                }
-                .padding(18)
+            VStack(alignment: .leading, spacing: 8) {
+                BiliMetricPill(text: L10n.nativeReady, systemImage: "play.tv.fill", tint: .white)
+                Text(currentTitle)
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
             }
+            .padding(18)
         }
-        .padding(18)
-        .biliCardStyle()
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .biliHeroCardStyle(cornerRadius: 12, tint: .blue)
     }
 
     private var overviewSection: some View {
@@ -273,7 +286,7 @@ struct VideoDetailView: View {
 
                 if needsDescriptionExpansion {
                     Button(isDescriptionExpanded ? L10n.videoDetailCollapseDescription : L10n.videoDetailExpandDescription) {
-                        withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                        withAnimation(.easeInOut(duration: 0.16)) {
                             isDescriptionExpanded.toggle()
                         }
                     }
@@ -283,10 +296,10 @@ struct VideoDetailView: View {
                 }
             }
             .padding(16)
-            .biliCardStyle(cornerRadius: 24, tint: .blue.opacity(0.14), shadowOpacity: 0.03)
+            .biliListCardStyle(cornerRadius: 24, tint: .blue)
         }
         .padding(18)
-        .biliCardStyle()
+        .biliListCardStyle()
     }
 
     private var creatorCard: some View {
@@ -316,6 +329,13 @@ struct VideoDetailView: View {
 
                 Spacer()
 
+                if let creatorReference {
+                    NavigationLink(value: creatorReference) {
+                        BiliSymbolOrb(systemImage: "person.crop.circle", tint: .blue, size: 38, lightweight: true)
+                    }
+                    .buttonStyle(.plain)
+                }
+
                 if let currentPage = selectedPage {
                     BiliMetricPill(
                         text: L10n.pageTitle(page: currentPage.page, part: currentPage.part),
@@ -334,35 +354,105 @@ struct VideoDetailView: View {
                     systemImage: "text.bubble.fill"
                 )
                 BiliMetricPill(
-                    text: BiliFormatting.compactCount(viewModel.detail?.likeCount ?? viewModel.seedVideo.likeCount),
+                    text: BiliFormatting.compactCount(viewModel.displayedLikeCount),
                     systemImage: "hand.thumbsup.fill",
                     tint: .orange
                 )
             }
         }
         .padding(18)
-        .biliCardStyle()
+        .biliListCardStyle()
     }
 
     private var actionPanel: some View {
         VStack(alignment: .leading, spacing: 14) {
-            BiliSectionHeader(title: L10n.actionPanelTitle, subtitle: L10n.actionPanelSubtitle)
+            BiliSectionHeader(title: L10n.actionPanelTitle, subtitle: actionPanelSubtitle)
+
+            if !viewModel.hasSession {
+                Text(L10n.videoInteractionLoginHint)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
 
             LazyVGrid(columns: actionColumns, spacing: 12) {
-                if shouldShowRestartAction {
-                    Button {
-                        shouldIgnoreResume = true
-                        playerResetSeed += 1
-                    } label: {
-                        Label(L10n.playFromBeginning, systemImage: "gobackward")
-                    }
-                    .buttonStyle(.plain)
-                    .biliSecondaryActionButton()
+                Button {
+                    Task { await viewModel.toggleLike() }
+                } label: {
+                    interactionTile(
+                        title: viewModel.isLiked ? L10n.videoUnlikeAction : L10n.videoLikeAction,
+                        value: BiliFormatting.compactCount(viewModel.displayedLikeCount),
+                        systemImage: viewModel.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup",
+                        tint: .pink,
+                        isActive: viewModel.isLiked,
+                        isLoading: viewModel.isSubmittingLike
+                    )
                 }
+                .buttonStyle(.plain)
+                .disabled(!viewModel.hasSession || viewModel.isSubmittingLike)
+
+                Menu {
+                    if coinMenuOptions.isEmpty {
+                        Button(L10n.videoCoinLimitReached) {}
+                            .disabled(true)
+                    } else {
+                        ForEach(coinMenuOptions) { option in
+                            Button(option.title) {
+                                Task {
+                                    await viewModel.coinVideo(amount: option.amount, alsoLike: option.alsoLike)
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    interactionTile(
+                        title: L10n.videoCoinAction,
+                        value: BiliFormatting.compactCount(viewModel.displayedCoinCount),
+                        systemImage: "centsign.circle.fill",
+                        tint: .orange,
+                        isActive: viewModel.userCoinCount > 0,
+                        isLoading: viewModel.isSubmittingCoin
+                    )
+                }
+                .disabled(!viewModel.hasSession || viewModel.isSubmittingCoin)
+
+                Button {
+                    if viewModel.isFavorited {
+                        Task { await viewModel.removeFromFavorites() }
+                    } else {
+                        isPresentingFavoritePicker = true
+                        Task { await viewModel.loadFavoriteFoldersIfNeeded() }
+                    }
+                } label: {
+                    interactionTile(
+                        title: viewModel.isFavorited ? L10n.videoFavoriteRemoveAction : L10n.addFavorite,
+                        value: BiliFormatting.compactCount(viewModel.displayedFavoriteCount),
+                        systemImage: viewModel.isFavorited ? "star.fill" : "star",
+                        tint: .blue,
+                        isActive: viewModel.isFavorited,
+                        isLoading: viewModel.isSubmittingFavorite
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(!viewModel.hasSession || viewModel.isSubmittingFavorite)
+
+                Button {
+                    shouldIgnoreResume = true
+                    playerResetSeed += 1
+                } label: {
+                    interactionTile(
+                        title: L10n.playFromBeginning,
+                        value: shouldShowRestartAction ? remoteWatchingText : L10n.videoInteractionRestartSubtitle,
+                        systemImage: "gobackward",
+                        tint: .teal,
+                        isActive: shouldShowRestartAction
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(currentPlayableVideo.cid == nil)
             }
         }
         .padding(18)
-        .biliCardStyle()
+        .biliListCardStyle()
     }
 
     private var actionColumns: [GridItem] {
@@ -376,13 +466,52 @@ struct VideoDetailView: View {
         viewModel.hasRemoteResume
     }
 
+    private var creatorReference: UserReference? {
+        let mid = viewModel.detail?.authorID ?? viewModel.seedVideo.authorID
+        guard let mid, mid > 0 else { return nil }
+        return UserReference(
+            mid: mid,
+            name: viewModel.detail?.authorName ?? viewModel.seedVideo.authorName,
+            avatarURL: viewModel.detail?.authorAvatarURL ?? viewModel.seedVideo.authorAvatarURL
+        )
+    }
+
+    private var actionPanelSubtitle: String {
+        viewModel.hasSession ? L10n.actionPanelSubtitle : L10n.videoInteractionLoginSubtitle
+    }
+
+    private var coinMenuOptions: [VideoCoinMenuOption] {
+        guard viewModel.remainingCoinCount > 0 else { return [] }
+
+        var options: [VideoCoinMenuOption] = []
+        for amount in 1...viewModel.remainingCoinCount {
+            options.append(
+                VideoCoinMenuOption(
+                    title: amount == 1 ? L10n.videoCoinOne : L10n.videoCoinTwo,
+                    amount: amount,
+                    alsoLike: false
+                )
+            )
+            if !viewModel.isLiked {
+                options.append(
+                    VideoCoinMenuOption(
+                        title: L10n.videoCoinAndLike(amount),
+                        amount: amount,
+                        alsoLike: true
+                    )
+                )
+            }
+        }
+        return options
+    }
+
     private var commentsSection: some View {
         VideoCommentsSection(
             apiClient: viewModel.apiClient,
             oid: currentCommentOID
         )
         .padding(18)
-        .biliCardStyle()
+        .biliListCardStyle()
     }
 
     private var descriptionText: String {
@@ -431,7 +560,7 @@ struct VideoDetailView: View {
     private func overviewMetricCard(title: String, value: String, systemImage: String, tint: Color) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                BiliSymbolOrb(systemImage: systemImage, tint: tint, size: 36)
+                BiliSymbolOrb(systemImage: systemImage, tint: tint, size: 36, lightweight: true)
                 Spacer(minLength: 8)
             }
 
@@ -446,7 +575,46 @@ struct VideoDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .biliCardStyle(cornerRadius: 24, tint: tint.opacity(0.16), interactive: true, shadowOpacity: 0.03)
+        .biliListCardStyle(cornerRadius: 24, tint: tint, interactive: true)
+    }
+
+    private func interactionTile(
+        title: String,
+        value: String,
+        systemImage: String,
+        tint: Color,
+        isActive: Bool = false,
+        isLoading: Bool = false
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                if isLoading {
+                    ProgressView()
+                        .tint(tint)
+                        .frame(width: 36, height: 36)
+                } else {
+                    BiliSymbolOrb(
+                        systemImage: systemImage,
+                        tint: tint,
+                        size: 36,
+                        lightweight: true
+                    )
+                }
+                Spacer(minLength: 8)
+            }
+
+            Text(value)
+                .font(.headline.weight(.bold))
+                .foregroundStyle(.primary)
+                .lineLimit(2)
+
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(isActive ? tint : .secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .biliListCardStyle(cornerRadius: 24, tint: tint, interactive: true)
     }
 
     private func section<Content: View>(title: String, subtitle: String? = nil, @ViewBuilder content: () -> Content) -> some View {
@@ -455,7 +623,17 @@ struct VideoDetailView: View {
             content()
         }
         .padding(18)
-        .biliCardStyle()
+        .biliListCardStyle()
+    }
+}
+
+private struct VideoCoinMenuOption: Identifiable {
+    let title: String
+    let amount: Int
+    let alsoLike: Bool
+
+    var id: String {
+        "\(amount)-\(alsoLike)"
     }
 }
 

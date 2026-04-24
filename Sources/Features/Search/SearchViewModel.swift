@@ -16,7 +16,12 @@ final class SearchViewModel: ObservableObject {
     @Published private(set) var trendingKeywords: [TrendingKeyword] = []
     @Published private(set) var recommendedKeywords: [TrendingKeyword] = []
     @Published private(set) var history: [String] = []
-    @Published private(set) var results: [VideoSummary] = []
+    @Published private(set) var selectedScope: SearchScope = .video
+    @Published private(set) var selectedVideoOrder: VideoSearchOrder = .totalrank
+    @Published private(set) var selectedVideoDuration: VideoDurationFilter = .all
+    @Published private(set) var scopeCounts: [SearchScope: Int] = [:]
+    @Published private(set) var results: [SearchResultItem] = []
+    @Published private(set) var totalResultsCount = 0
     @Published private(set) var isSearching = false
     @Published private(set) var isLoadingLanding = false
     @Published private(set) var isLoadingMoreResults = false
@@ -67,23 +72,11 @@ final class SearchViewModel: ObservableObject {
         query = keyword
         suggestions = []
         hasCommittedSearch = true
-        isSearching = true
         errorMessage = nil
         addToHistory(keyword)
-
-        do {
-            let loadedResults = try await fetchSearchResults(keyword: keyword, page: 1)
-            currentSearchKeyword = keyword
-            nextResultsPage = 2
-            canLoadMoreResults = loadedResults.count >= resultsPageSize
-            results = loadedResults
-        } catch {
-            errorMessage = error.localizedDescription
-            results = []
-            canLoadMoreResults = false
-        }
-
-        isSearching = false
+        currentSearchKeyword = keyword
+        scopeCounts = [:]
+        await executeSearch(resetResults: true)
     }
 
     func loadMoreResults() async {
@@ -93,24 +86,33 @@ final class SearchViewModel: ObservableObject {
         guard !isLoadingMoreResults else { return }
         guard canLoadMoreResults else { return }
 
-        isLoadingMoreResults = true
-        defer { isLoadingMoreResults = false }
-
-        do {
-            let loadedResults = try await fetchSearchResults(keyword: currentSearchKeyword, page: nextResultsPage)
-            results.append(contentsOf: loadedResults.filter { incoming in
-                !results.contains(where: { $0.id == incoming.id })
-            })
-            nextResultsPage += 1
-            canLoadMoreResults = loadedResults.count >= resultsPageSize
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        await executeSearch(resetResults: false)
     }
 
     func useKeyword(_ keyword: String) {
         query = keyword
         Task { await submitSearch() }
+    }
+
+    func selectScope(_ scope: SearchScope) async {
+        guard selectedScope != scope else { return }
+        selectedScope = scope
+        guard hasCommittedSearch else { return }
+        await executeSearch(resetResults: true)
+    }
+
+    func selectVideoOrder(_ order: VideoSearchOrder) async {
+        guard selectedVideoOrder != order else { return }
+        selectedVideoOrder = order
+        guard hasCommittedSearch, selectedScope == .video else { return }
+        await executeSearch(resetResults: true)
+    }
+
+    func selectVideoDuration(_ duration: VideoDurationFilter) async {
+        guard selectedVideoDuration != duration else { return }
+        selectedVideoDuration = duration
+        guard hasCommittedSearch, selectedScope == .video else { return }
+        await executeSearch(resetResults: true)
     }
 
     func removeHistoryItem(_ item: String) {
@@ -163,25 +165,87 @@ final class SearchViewModel: ObservableObject {
         }
     }
 
-    private func fetchSearchResults(keyword: String, page: Int) async throws -> [VideoSummary] {
+    private func executeSearch(resetResults: Bool) async {
+        guard !currentSearchKeyword.isEmpty else { return }
+
+        if resetResults {
+            isSearching = true
+            results = []
+            totalResultsCount = 0
+            canLoadMoreResults = false
+            errorMessage = nil
+        } else {
+            isLoadingMoreResults = true
+        }
+
+        defer {
+            if resetResults {
+                isSearching = false
+            } else {
+                isLoadingMoreResults = false
+            }
+        }
+
+        do {
+            let page = resetResults ? 1 : nextResultsPage
+            let response = try await fetchSearchResults(
+                keyword: currentSearchKeyword,
+                page: page,
+                scope: selectedScope
+            )
+
+            if resetResults {
+                results = response.items
+            } else {
+                results.append(contentsOf: response.items.filter { incoming in
+                    !results.contains(where: { $0.id == incoming.id })
+                })
+            }
+
+            totalResultsCount = response.totalCount
+            nextResultsPage = page + 1
+            let hasMoreByTotal = response.totalCount > 0 && results.count < response.totalCount
+            let hasMoreByPage = response.items.count >= resultsPageSize
+            canLoadMoreResults = !response.items.isEmpty && (hasMoreByTotal || hasMoreByPage)
+
+            var updatedCounts = scopeCounts
+            updatedCounts[selectedScope] = response.totalCount
+            scopeCounts = updatedCounts
+        } catch {
+            errorMessage = error.localizedDescription
+            if resetResults {
+                results = []
+                totalResultsCount = 0
+            }
+            canLoadMoreResults = false
+        }
+    }
+
+    private func fetchSearchResults(keyword: String, page: Int, scope: SearchScope) async throws -> SearchResponse {
         let refererKeyword = keyword.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? keyword
         let data = try await apiClient.requestEnvelopeData(
             path: BiliEndpoint.searchByType,
-            query: [
-                "search_type": "video",
-                "keyword": keyword,
-                "page": "\(page)",
-                "page_size": "\(resultsPageSize)",
-                "platform": "pc",
-                "web_location": "1430654"
-            ],
+            query: searchQuery(keyword: keyword, page: page, scope: scope),
             headers: [
                 "origin": "https://search.bilibili.com",
-                "referer": "https://search.bilibili.com/video?keyword=\(refererKeyword)"
+                "referer": "https://search.bilibili.com/\(scope.refererPathComponent)?keyword=\(refererKeyword)"
             ],
             signedByWBI: true
         )
-        return JSONValue.dictionaries(data["result"]).map(VideoSummary.init)
+
+        let totalCount = JSONValue.int(data["numResults"]) ?? JSONValue.int(data["num_pages"]) ?? 0
+        let items: [SearchResultItem] = switch scope {
+        case .video:
+            JSONValue.dictionaries(data["result"]).map { .video(VideoSummary(json: $0)) }
+        case .bangumi:
+            JSONValue.dictionaries(data["result"]).map { .bangumi(SearchBangumiResult(json: $0)) }
+        case .liveRoom:
+            JSONValue.dictionaries(data["result"]).map { .liveRoom(SearchLiveRoomResult(json: $0)) }
+        case .user:
+            JSONValue.dictionaries(data["result"]).map { .user(SearchUserResult(json: $0)) }
+        }
+
+        return SearchResponse(items: items, totalCount: totalCount)
     }
 
     private func fetchSearchPlaceholder() async throws -> String {
@@ -236,4 +300,27 @@ final class SearchViewModel: ObservableObject {
         }
         UserDefaults.standard.set(history, forKey: Keys.history)
     }
+
+    private func searchQuery(keyword: String, page: Int, scope: SearchScope) -> [String: String] {
+        var query: [String: String] = [
+            "search_type": scope.searchTypeValue,
+            "keyword": keyword,
+            "page": "\(page)",
+            "page_size": "\(resultsPageSize)",
+            "platform": "pc",
+            "web_location": "1430654"
+        ]
+
+        if scope == .video {
+            query["order"] = selectedVideoOrder.rawValue
+            query["duration"] = "\(selectedVideoDuration.rawValue)"
+        }
+
+        return query
+    }
+}
+
+private struct SearchResponse {
+    let items: [SearchResultItem]
+    let totalCount: Int
 }

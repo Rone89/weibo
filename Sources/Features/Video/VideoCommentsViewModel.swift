@@ -168,6 +168,36 @@ final class VideoCommentsViewModel: ObservableObject {
         }
     }
 
+    func toggleLike(for comment: VideoComment) async {
+        guard let currentOID, currentOID > 0 else { return }
+        guard let rpid = comment.numericID else {
+            errorMessage = L10n.videoCommentsLikeUnavailable
+            return
+        }
+
+        do {
+            errorMessage = nil
+            let shouldLike = !comment.isLiked
+            let csrf = try await apiClient.requireCSRFToken()
+            _ = try await apiClient.postEnvelopeValue(
+                path: BiliEndpoint.replyLike,
+                form: [
+                    "type": "\(replyTypeValue)",
+                    "oid": "\(currentOID)",
+                    "rpid": "\(rpid)",
+                    "action": shouldLike ? "1" : "0",
+                    "csrf": csrf
+                ]
+            )
+
+            topReplies = updateLikeState(in: topReplies, targetID: comment.id, isLiked: shouldLike)
+            replies = updateLikeState(in: replies, targetID: comment.id, isLiked: shouldLike)
+            actionMessage = shouldLike ? L10n.videoCommentsLiked : L10n.videoCommentsUnliked
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     private func fetchPage(oid: Int, offset: String, sortMode: SortMode) async throws -> VideoCommentPage {
         let paginationString = #"{"offset":"\#(offset)"}"#
         let data = try await apiClient.requestEnvelopeData(
@@ -180,5 +210,12 @@ final class VideoCommentsViewModel: ObservableObject {
             ]
         )
         return VideoCommentPage(json: data)
+    }
+
+    private func updateLikeState(in comments: [VideoComment], targetID: String, isLiked: Bool) -> [VideoComment] {
+        comments.map { comment in
+            guard comment.id == targetID else { return comment }
+            return comment.toggledLikeState(to: isLiked)
+        }
     }
 }

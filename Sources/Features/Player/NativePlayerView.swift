@@ -4,6 +4,47 @@ import SwiftUI
 import UIKit
 import WebKit
 
+private enum PlayerAspectMode: String, CaseIterable, Identifiable {
+    case contain
+    case fill
+    case stretch
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .contain:
+            return L10n.playerAspectContain
+        case .fill:
+            return L10n.playerAspectFill
+        case .stretch:
+            return L10n.playerAspectStretch
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .contain:
+            return "aspectratio"
+        case .fill:
+            return "rectangle.fill.on.rectangle.fill"
+        case .stretch:
+            return "arrow.up.left.and.arrow.down.right"
+        }
+    }
+
+    var videoGravity: AVLayerVideoGravity {
+        switch self {
+        case .contain:
+            return .resizeAspect
+        case .fill:
+            return .resizeAspectFill
+        case .stretch:
+            return .resize
+        }
+    }
+}
+
 struct NativePlayerView: View {
     enum DisplayMode {
         case standalone
@@ -37,6 +78,7 @@ struct NativePlayerView: View {
 
     private enum PreferenceKeys {
         static let playbackSurfaceMode = "player.preference.surfaceMode.v1"
+        static let playerAspectMode = "player.preference.aspectMode.v1"
     }
 
     @StateObject private var viewModel: NativePlayerViewModel
@@ -46,6 +88,7 @@ struct NativePlayerView: View {
     @State private var isPresentingFullscreen = false
     @State private var isPresentingCompatibilityPlayer = false
     @State private var preferredSurfaceMode: PlaybackSurfaceMode
+    @State private var preferredAspectMode: PlayerAspectMode
 
     init(
         displayMode: DisplayMode = .standalone,
@@ -56,6 +99,7 @@ struct NativePlayerView: View {
     ) {
         self.displayMode = displayMode
         _preferredSurfaceMode = State(initialValue: Self.loadPreferredSurfaceMode())
+        _preferredAspectMode = State(initialValue: Self.loadPreferredAspectMode())
         _viewModel = StateObject(
             wrappedValue: NativePlayerViewModel(
                 apiClient: apiClient,
@@ -106,7 +150,9 @@ struct NativePlayerView: View {
         .fullScreenCover(isPresented: $isPresentingFullscreen) {
             NativePlayerFullscreenView(
                 viewModel: viewModel,
-                isPresented: $isPresentingFullscreen
+                isPresented: $isPresentingFullscreen,
+                aspectMode: preferredAspectMode,
+                onSelectAspectMode: setPreferredAspectMode
             )
         }
         .sheet(isPresented: $isPresentingCompatibilityPlayer) {
@@ -148,6 +194,8 @@ struct NativePlayerView: View {
                 InteractivePlayerSurface(
                     viewModel: viewModel,
                     isFullscreen: false,
+                    aspectMode: preferredAspectMode,
+                    onSelectAspectMode: setPreferredAspectMode,
                     onToggleFullscreen: {
                         isPresentingFullscreen = true
                     }
@@ -278,6 +326,7 @@ struct NativePlayerView: View {
         ZStack(alignment: .bottomLeading) {
             AsyncPosterImage(urlString: viewModel.video.coverURL, width: nil, height: 260)
                 .frame(maxWidth: .infinity)
+                .drawingGroup(opaque: true)
 
             LinearGradient(
                 colors: [.clear, .black.opacity(0.76)],
@@ -315,7 +364,7 @@ struct NativePlayerView: View {
             .padding(20)
         }
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .biliCardStyle(cornerRadius: 28, tint: .blue.opacity(0.24), interactive: true)
+        .biliHeroCardStyle(cornerRadius: 28, tint: .blue)
     }
 
     private var compatibilityModeSection: some View {
@@ -486,6 +535,16 @@ struct NativePlayerView: View {
                     text: viewModel.isPlaying ? L10n.playingStatus : L10n.pausedStatus,
                     systemImage: viewModel.isPlaying ? "play.circle.fill" : "pause.circle"
                 )
+
+                Menu {
+                    ForEach(PlayerAspectMode.allCases) { mode in
+                        Button(mode.title) {
+                            setPreferredAspectMode(mode)
+                        }
+                    }
+                } label: {
+                    Label("\(L10n.playerAspectTitle): \(preferredAspectMode.title)", systemImage: preferredAspectMode.systemImage)
+                }
 
                 BiliMetricPill(
                     text: L10n.playerGestureHint,
@@ -716,10 +775,24 @@ struct NativePlayerView: View {
         isPresentingCompatibilityPlayer = true
     }
 
+    private func setPreferredAspectMode(_ mode: PlayerAspectMode) {
+        guard preferredAspectMode != mode else { return }
+        preferredAspectMode = mode
+        UserDefaults.standard.set(mode.rawValue, forKey: PreferenceKeys.playerAspectMode)
+    }
+
     private static func loadPreferredSurfaceMode(defaults: UserDefaults = .standard) -> PlaybackSurfaceMode {
         guard let rawValue = defaults.string(forKey: PreferenceKeys.playbackSurfaceMode),
               let mode = PlaybackSurfaceMode(rawValue: rawValue) else {
             return .native
+        }
+        return mode
+    }
+
+    private static func loadPreferredAspectMode(defaults: UserDefaults = .standard) -> PlayerAspectMode {
+        guard let rawValue = defaults.string(forKey: PreferenceKeys.playerAspectMode),
+              let mode = PlayerAspectMode(rawValue: rawValue) else {
+            return .contain
         }
         return mode
     }
@@ -728,6 +801,8 @@ struct NativePlayerView: View {
 private struct NativePlayerFullscreenView: View {
     @ObservedObject var viewModel: NativePlayerViewModel
     @Binding var isPresented: Bool
+    let aspectMode: PlayerAspectMode
+    let onSelectAspectMode: (PlayerAspectMode) -> Void
 
     var body: some View {
         ZStack {
@@ -738,6 +813,8 @@ private struct NativePlayerFullscreenView: View {
                 InteractivePlayerSurface(
                     viewModel: viewModel,
                     isFullscreen: true,
+                    aspectMode: aspectMode,
+                    onSelectAspectMode: onSelectAspectMode,
                     onToggleFullscreen: {
                         isPresented = false
                     }
@@ -788,6 +865,15 @@ private struct NativePlayerFullscreenView: View {
                     }
 
                     fullscreenPill(viewModel.playbackRateLabel, systemImage: "speedometer")
+                    Menu {
+                        ForEach(PlayerAspectMode.allCases) { mode in
+                            Button(mode.title) {
+                                onSelectAspectMode(mode)
+                            }
+                        }
+                    } label: {
+                        fullscreenPill(aspectMode.title, systemImage: aspectMode.systemImage)
+                    }
                 }
             }
         }
@@ -818,6 +904,7 @@ private struct InteractivePlayerSurface: View {
         case seek
         case brightness
         case volume
+        case fullscreenToggle
     }
 
     struct GestureHUD: Equatable {
@@ -828,6 +915,8 @@ private struct InteractivePlayerSurface: View {
 
     @ObservedObject var viewModel: NativePlayerViewModel
     let isFullscreen: Bool
+    let aspectMode: PlayerAspectMode
+    let onSelectAspectMode: (PlayerAspectMode) -> Void
     let onToggleFullscreen: () -> Void
 
     @State private var areControlsVisible = true
@@ -838,12 +927,14 @@ private struct InteractivePlayerSurface: View {
     @State private var dragStartTime: TimeInterval = 0
     @State private var pendingSeekTime: TimeInterval?
     @State private var hideControlsTask: Task<Void, Never>?
+    @State private var isSpeedBoostActive = false
     @StateObject private var systemVolumeController = SystemVolumeController()
+    @GestureState private var isSpeedBoostPressed = false
 
     var body: some View {
         GeometryReader { proxy in
             ZStack {
-                PlayerCanvasView(player: viewModel.player)
+                PlayerCanvasView(player: viewModel.player, videoGravity: aspectMode.videoGravity)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.black)
 
@@ -868,6 +959,7 @@ private struct InteractivePlayerSurface: View {
             .background(Color.black)
             .contentShape(Rectangle())
             .highPriorityGesture(dragGesture(in: proxy.size))
+            .simultaneousGesture(speedBoostGesture)
             .onTapGesture {
                 toggleControls()
             }
@@ -889,6 +981,14 @@ private struct InteractivePlayerSurface: View {
         }
         .onDisappear {
             hideControlsTask?.cancel()
+            endTemporarySpeedBoostIfNeeded()
+        }
+        .onChange(of: isSpeedBoostPressed) { isPressed in
+            if isPressed {
+                beginTemporarySpeedBoostIfNeeded()
+            } else {
+                endTemporarySpeedBoostIfNeeded()
+            }
         }
     }
 
@@ -908,6 +1008,10 @@ private struct InteractivePlayerSurface: View {
                         }
                         if viewModel.isShowingDanmakuOverlay {
                             playerBadge(L10n.danmakuTrackStyle, systemImage: "text.line.first.and.arrowtriangle.forward")
+                        }
+                        playerBadge("\(L10n.playerAspectTitle): \(aspectMode.title)", systemImage: aspectMode.systemImage)
+                        if isSpeedBoostActive {
+                            playerBadge(L10n.playerSpeedBoosting, systemImage: "speedometer")
                         }
                     }
 
@@ -980,6 +1084,21 @@ private struct InteractivePlayerSurface: View {
                                 .background(.white.opacity(0.14), in: Capsule())
                         }
 
+                        Menu {
+                            ForEach(PlayerAspectMode.allCases) { mode in
+                                Button(mode.title) {
+                                    onSelectAspectMode(mode)
+                                    scheduleAutoHideIfNeeded()
+                                }
+                            }
+                        } label: {
+                            Image(systemName: aspectMode.systemImage)
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 36, height: 36)
+                                .background(.white.opacity(0.14), in: Circle())
+                        }
+
                         Button {
                             viewModel.setDanmakuOverlay(!viewModel.isShowingDanmakuOverlay)
                             scheduleAutoHideIfNeeded()
@@ -1037,6 +1156,13 @@ private struct InteractivePlayerSurface: View {
                 .contentShape(Rectangle())
                 .allowsHitTesting(!areControlsVisible)
                 .onTapGesture(count: 2) {
+                    handleDoubleTapPlaybackToggle()
+                }
+
+            Color.clear
+                .contentShape(Rectangle())
+                .allowsHitTesting(!areControlsVisible)
+                .onTapGesture(count: 2) {
                     handleDoubleTapSeek(delta: 15, icon: "goforward.15", text: L10n.jumpForward15)
                 }
         }
@@ -1052,9 +1178,12 @@ private struct InteractivePlayerSurface: View {
                     dragStartVolume = systemVolumeController.currentVolume
                     dragStartTime = viewModel.currentPlaybackSeconds
                     pendingSeekTime = nil
+                    let isCenterColumn = value.startLocation.x > size.width * 0.33 && value.startLocation.x < size.width * 0.67
 
                     if abs(value.translation.width) > abs(value.translation.height) {
                         dragMode = .seek
+                    } else if isCenterColumn {
+                        dragMode = .fullscreenToggle
                     } else if value.startLocation.x < size.width / 2 {
                         dragMode = .brightness
                     } else {
@@ -1092,13 +1221,30 @@ private struct InteractivePlayerSurface: View {
                         text: "\(L10n.gestureVolume) \(Int((level * 100).rounded()))%",
                         level: Double(level)
                     )
+                case .fullscreenToggle:
+                    let progress = min(abs(value.translation.height) / max(size.height * 0.3, 1), 1)
+                    let isTriggering = isFullscreen ? value.translation.height > 0 : value.translation.height < 0
+                    gestureHUD = GestureHUD(
+                        icon: isFullscreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",
+                        text: isFullscreen
+                            ? (isTriggering ? L10n.playerFullscreenExitGesture : L10n.playerFullscreenExitCancel)
+                            : (isTriggering ? L10n.playerFullscreenEnterGesture : L10n.playerFullscreenEnterCancel),
+                        level: progress
+                    )
                 case nil:
                     break
                 }
             }
-            .onEnded { _ in
+            .onEnded { value in
                 if dragMode == .seek, let pendingSeekTime {
                     viewModel.seek(to: pendingSeekTime)
+                } else if dragMode == .fullscreenToggle {
+                    let shouldToggle = isFullscreen
+                        ? value.translation.height > 110
+                        : value.translation.height < -110
+                    if shouldToggle {
+                        onToggleFullscreen()
+                    }
                 }
 
                 dragMode = nil
@@ -1115,6 +1261,18 @@ private struct InteractivePlayerSurface: View {
             icon: icon,
             text: text,
             level: viewModel.totalDurationSeconds > 0 ? viewModel.currentPlaybackSeconds / viewModel.totalDurationSeconds : nil
+        )
+        dismissGestureHUDSoon()
+        scheduleAutoHideIfNeeded()
+    }
+
+    private func handleDoubleTapPlaybackToggle() {
+        guard viewModel.playerItem != nil else { return }
+        viewModel.togglePlayback()
+        gestureHUD = GestureHUD(
+            icon: viewModel.isPlaying ? "play.fill" : "pause.fill",
+            text: viewModel.isPlaying ? L10n.playerDoubleTapPlay : L10n.playerDoubleTapPause,
+            level: nil
         )
         dismissGestureHUDSoon()
         scheduleAutoHideIfNeeded()
@@ -1147,6 +1305,36 @@ private struct InteractivePlayerSurface: View {
                 gestureHUD = nil
             }
         }
+    }
+
+    private var speedBoostGesture: some Gesture {
+        LongPressGesture(minimumDuration: 0.35, maximumDistance: 24)
+            .updating($isSpeedBoostPressed) { value, state, _ in
+                state = value
+            }
+    }
+
+    private func beginTemporarySpeedBoostIfNeeded() {
+        guard viewModel.playerItem != nil else { return }
+        guard viewModel.isPlaying else { return }
+        guard !isSpeedBoostActive else { return }
+
+        isSpeedBoostActive = true
+        viewModel.player.playImmediately(atRate: 2)
+        gestureHUD = GestureHUD(
+            icon: "speedometer",
+            text: L10n.playerSpeedBoosting,
+            level: 1
+        )
+    }
+
+    private func endTemporarySpeedBoostIfNeeded() {
+        guard isSpeedBoostActive else { return }
+        isSpeedBoostActive = false
+        if viewModel.isPlaying {
+            viewModel.player.playImmediately(atRate: viewModel.playbackRate)
+        }
+        dismissGestureHUDSoon()
     }
 
     private func gestureHUDView(_ hud: GestureHUD) -> some View {
@@ -1239,16 +1427,18 @@ private struct HiddenSystemVolumeView: UIViewRepresentable {
 
 private struct PlayerCanvasView: UIViewRepresentable {
     let player: AVPlayer
+    let videoGravity: AVLayerVideoGravity
 
     func makeUIView(context: Context) -> PlayerCanvasUIView {
         let view = PlayerCanvasUIView()
-        view.playerLayer.videoGravity = .resizeAspect
+        view.playerLayer.videoGravity = videoGravity
         view.playerLayer.player = player
         return view
     }
 
     func updateUIView(_ uiView: PlayerCanvasUIView, context: Context) {
         uiView.playerLayer.player = player
+        uiView.playerLayer.videoGravity = videoGravity
     }
 }
 

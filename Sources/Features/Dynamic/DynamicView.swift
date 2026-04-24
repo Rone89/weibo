@@ -64,11 +64,6 @@ struct DynamicView: View {
             .task {
                 await viewModel.loadIfNeeded()
             }
-            .onAppear {
-                Task {
-                    await viewModel.loadIfNeeded()
-                }
-            }
             .refreshable {
                 await viewModel.reload()
             }
@@ -81,6 +76,9 @@ struct DynamicView: View {
                 DynamicDetailView(
                     viewModel: DynamicDetailViewModel(apiClient: viewModel.apiClient, seedItem: item)
                 )
+            }
+            .navigationDestination(for: UserReference.self) { reference in
+                UserProfileView(apiClient: viewModel.apiClient, reference: reference)
             }
         }
     }
@@ -100,7 +98,7 @@ struct DynamicView: View {
                 Spacer(minLength: 12)
 
                 Button(action: onTapProfile) {
-                    BiliSymbolOrb(systemImage: "person.crop.circle", tint: Color("AccentColor"))
+                    BiliSymbolOrb(systemImage: "person.crop.circle", tint: Color("AccentColor"), lightweight: true)
                 }
                 .buttonStyle(.plain)
             }
@@ -112,7 +110,7 @@ struct DynamicView: View {
             }
         }
         .padding(20)
-        .biliCardStyle(tint: .pink.opacity(0.32), interactive: true)
+        .biliPanelCardStyle(tint: .pink.opacity(0.32), interactive: true)
     }
 
     private var filterBar: some View {
@@ -148,7 +146,7 @@ struct DynamicView: View {
             Button {
                 Task { await viewModel.reload() }
             } label: {
-                BiliSymbolOrb(systemImage: "arrow.clockwise", tint: Color("AccentColor"), size: 40)
+                BiliSymbolOrb(systemImage: "arrow.clockwise", tint: Color("AccentColor"), size: 40, lightweight: true)
             }
             .buttonStyle(.plain)
         }
@@ -168,7 +166,7 @@ struct DynamicView: View {
                 .biliPrimaryActionButton(fillWidth: false)
         }
         .padding(18)
-        .biliCardStyle(tint: .blue.opacity(0.26), interactive: true)
+        .biliPanelCardStyle(tint: .blue.opacity(0.26), interactive: true)
     }
 
     private var feedSection: some View {
@@ -252,7 +250,7 @@ struct DynamicFeedCard: View {
             statRow
         }
         .padding(18)
-        .biliCardStyle(tint: .pink.opacity(0.16), interactive: true)
+        .biliListCardStyle(tint: .pink, interactive: true)
     }
 
     private var authorRow: some View {
@@ -292,13 +290,25 @@ struct DynamicFeedCard: View {
 
             Spacer(minLength: 0)
 
+            if let authorReference {
+                NavigationLink(value: authorReference) {
+                    BiliSymbolOrb(systemImage: "person.crop.circle", tint: .blue, size: 38, lightweight: true)
+                }
+                .buttonStyle(.plain)
+            }
+
             if showsDetailLink {
                 NavigationLink(value: item) {
-                    BiliSymbolOrb(systemImage: "arrow.right.circle.fill", tint: Color("AccentColor"), size: 38)
+                    BiliSymbolOrb(systemImage: "arrow.right.circle.fill", tint: Color("AccentColor"), size: 38, lightweight: true)
                 }
                 .buttonStyle(.plain)
             }
         }
+    }
+
+    private var authorReference: UserReference? {
+        guard let mid = item.author.mid, mid > 0 else { return nil }
+        return UserReference(mid: mid, name: item.author.name, avatarURL: item.author.avatarURL)
     }
 
     private var statRow: some View {
@@ -348,7 +358,7 @@ struct DynamicEmbeddedVideoCard: View {
             Spacer(minLength: 0)
         }
         .padding(12)
-        .biliCardStyle(cornerRadius: 20, tint: .orange.opacity(0.18), interactive: true, shadowOpacity: 0.04)
+        .biliListCardStyle(cornerRadius: 20, tint: .orange, interactive: true)
     }
 }
 
@@ -383,7 +393,7 @@ struct DynamicQuotedCard: View {
             }
         }
         .padding(14)
-        .biliCardStyle(cornerRadius: 22, tint: .blue.opacity(0.16), shadowOpacity: 0.03)
+        .biliListCardStyle(cornerRadius: 22, tint: .blue)
     }
 }
 
@@ -394,6 +404,7 @@ struct DynamicImageGrid: View {
         if images.count == 1, let first = images.first {
             AsyncPosterImage(urlString: first.url, width: nil, height: 220)
                 .frame(maxWidth: .infinity)
+                .drawingGroup(opaque: true)
         } else {
             LazyVGrid(columns: columns, spacing: 10) {
                 ForEach(images.prefix(4)) { image in

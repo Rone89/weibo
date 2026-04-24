@@ -55,7 +55,7 @@ final class NativePlayerViewModel: ObservableObject {
         self.selectedPage = selectedPage
         self.initialSeekSeconds = initialSeekSeconds
         self.defaults = defaults
-        self.player.automaticallyWaitsToMinimizeStalling = false
+        self.player.automaticallyWaitsToMinimizeStalling = true
         self.player.allowsExternalPlayback = true
         self.playbackRate = Self.normalizedPlaybackRate(
             Float(defaults.double(forKey: PreferenceKeys.playbackRate))
@@ -133,6 +133,7 @@ final class NativePlayerViewModel: ObservableObject {
                 await self.reportHistoryIfNeeded()
             }
         } catch {
+            source = fallbackWebSource()
             errorMessage = error.localizedDescription
             isLoading = false
         }
@@ -250,6 +251,7 @@ final class NativePlayerViewModel: ObservableObject {
         }
 
         let requestedQn = preferredQuality ?? 80
+        let includeCookies = !apiClient.preferencesStore.isIncognitoPlaybackEnabled
         guard let webURL = URL(string: "https://www.bilibili.com/video/\(video.bvid)?p=\(selectedPage?.page ?? 1)") else {
             throw APIError.invalidURL
         }
@@ -273,7 +275,8 @@ final class NativePlayerViewModel: ObservableObject {
                 "Referer": "\(BiliBaseURL.web)/",
                 "Origin": BiliBaseURL.web
             ],
-            signedByWBI: true
+            signedByWBI: true,
+            includeCookies: includeCookies
         )
 
         if let durl = JSONValue.dictionaries(directData["durl"]).first,
@@ -315,6 +318,7 @@ final class NativePlayerViewModel: ObservableObject {
         }
 
         let requestedQn = preferredQuality ?? 80
+        let includeCookies = !apiClient.preferencesStore.isIncognitoPlaybackEnabled
         guard let webURL = URL(string: "https://www.bilibili.com/video/\(video.bvid)?p=\(selectedPage?.page ?? 1)") else {
             throw APIError.invalidURL
         }
@@ -339,7 +343,8 @@ final class NativePlayerViewModel: ObservableObject {
                 "web_location": "1315873"
             ].filter { !$0.value.isEmpty },
             headers: playbackHeaders,
-            signedByWBI: true
+            signedByWBI: true,
+            includeCookies: includeCookies
         )
 
         async let directDataTask = apiClient.requestEnvelopeData(
@@ -358,7 +363,8 @@ final class NativePlayerViewModel: ObservableObject {
                 "web_location": "1315873"
             ].filter { !$0.value.isEmpty },
             headers: playbackHeaders,
-            signedByWBI: true
+            signedByWBI: true,
+            includeCookies: includeCookies
         )
 
         let (dashData, directData) = try await (dashDataTask, directDataTask)
@@ -559,7 +565,7 @@ final class NativePlayerViewModel: ObservableObject {
         guard playbackObserver == nil else { return }
 
         playbackObserver = player.addPeriodicTimeObserver(
-            forInterval: CMTime(seconds: 0.35, preferredTimescale: CMTimeScale(NSEC_PER_SEC)),
+            forInterval: CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC)),
             queue: .main
         ) { [weak self] time in
             guard let self else { return }
@@ -622,7 +628,10 @@ final class NativePlayerViewModel: ObservableObject {
                 throw APIError.invalidResponse
             }
 
-            danmakuItems = DanmakuXMLParser().parse(data: data)
+            let parsedItems = try await Task.detached(priority: .utility) {
+                DanmakuXMLParser().parse(data: data)
+            }.value
+            danmakuItems = parsedItems
             updateVisibleDanmaku(at: currentPlaybackSeconds)
         } catch {
             errorMessage = error.localizedDescription
@@ -713,6 +722,7 @@ final class NativePlayerViewModel: ObservableObject {
     }
 
     private func reportHistoryIfNeeded() async {
+        guard !apiClient.preferencesStore.isIncognitoPlaybackEnabled else { return }
         guard !didReportHistoryEntry else { return }
         guard let aid = video.aid else { return }
 
@@ -733,6 +743,7 @@ final class NativePlayerViewModel: ObservableObject {
     }
 
     private func sendRemoteHeartbeat(force: Bool) async {
+        guard !apiClient.preferencesStore.isIncognitoPlaybackEnabled else { return }
         guard currentPlaybackSeconds >= 5 || force else { return }
         guard let cid = selectedPage?.cid ?? video.cid else { return }
 
@@ -782,6 +793,22 @@ final class NativePlayerViewModel: ObservableObject {
         }
 
         seek(to: restoredSeconds)
+    }
+
+    private func fallbackWebSource() -> NativePlayableSource? {
+        guard let webURL = URL(string: "https://www.bilibili.com/video/\(video.bvid)?p=\(selectedPage?.page ?? 1)") else {
+            return nil
+        }
+
+        return NativePlayableSource(
+            title: video.title,
+            mode: .webFallback,
+            fallbackWebURL: webURL,
+            note: L10n.nativeFallbackNote,
+            qualityOptions: [],
+            defaultQuality: nil,
+            currentQualityLabel: nil
+        )
     }
 
     private func note(for option: PlaybackQualityOption) -> String {
@@ -981,21 +1008,23 @@ final class NativePlayerViewModel: ObservableObject {
                 throw APIError.server(L10n.nativeStreamUnavailable)
             }
             let item = AVPlayerItem(asset: asset)
-            item.preferredForwardBufferDuration = 1.5
+            item.preferredForwardBufferDuration = 4
             return item
         case .composite:
             if let item = try await makeCompositeItem(videoURL: option.videoURL, audioURL: option.audioURL) {
-                item.preferredForwardBufferDuration = 1.5
+                item.preferredForwardBufferDuration = 4
                 return item
             }
             let fallbackItem = AVPlayerItem(asset: makeMediaAsset(url: option.videoURL))
-            fallbackItem.preferredForwardBufferDuration = 1.5
+            fallbackItem.preferredForwardBufferDuration = 4
             return fallbackItem
         }
     }
 
     private func makeMediaAsset(url: URL) -> AVURLAsset {
-        let cookies = HTTPCookieStorage.shared.cookies(for: url) ?? HTTPCookieStorage.shared.cookies ?? []
+        let cookies: [HTTPCookie] = apiClient.preferencesStore.isIncognitoPlaybackEnabled
+            ? []
+            : (HTTPCookieStorage.shared.cookies(for: url) ?? HTTPCookieStorage.shared.cookies ?? [])
         let headers = [
             "User-Agent": BiliAPIClient.userAgent,
             "Referer": "\(BiliBaseURL.web)/",
@@ -1050,6 +1079,13 @@ final class NativePlayerViewModel: ObservableObject {
             guard let self else { return }
             if self.errorMessage == nil {
                 self.errorMessage = L10n.nativePlaybackStalled
+            }
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 700_000_000)
+                guard let self else { return }
+                guard self.player.currentItem === item else { return }
+                guard self.isPlaying else { return }
+                self.player.play()
             }
         }
     }
