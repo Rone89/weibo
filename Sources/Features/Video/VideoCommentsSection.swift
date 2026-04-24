@@ -231,12 +231,12 @@ struct VideoCommentsSection: View {
                     .lineLimit(1)
             }
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(viewModel.sortMode == mode ? .white : .primary)
+            .foregroundColor(viewModel.sortMode == mode ? .white : .primary)
             .padding(.horizontal, 14)
             .padding(.vertical, 11)
             .background(
                 Capsule()
-                    .fill(viewModel.sortMode == mode ? Color("AccentColor") : Color(.secondarySystemBackground).opacity(0.96))
+                    .fill(viewModel.sortMode == mode ? Color("AccentColor").opacity(0.96) : Color(.secondarySystemBackground).opacity(0.96))
             )
             .overlay(
                 Capsule()

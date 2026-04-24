@@ -5,7 +5,6 @@ struct RootTabView: View {
         case home
         case search
         case dynamic
-        case history
         case profile
     }
 
@@ -35,14 +34,6 @@ struct RootTabView: View {
                 Label(L10n.tabDynamic, systemImage: selection == .dynamic ? "square.grid.2x2.fill" : "square.grid.2x2")
             }
             .tag(RootTab.dynamic)
-
-            NavigationStack {
-                HistoryView(apiClient: appEnvironment.apiClient)
-            }
-                .tabItem {
-                    Label(L10n.historyTitle, systemImage: selection == .history ? "clock.fill" : "clock")
-                }
-            .tag(RootTab.history)
 
             ProfileView(
                 apiClient: appEnvironment.apiClient,

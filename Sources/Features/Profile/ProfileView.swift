@@ -115,14 +115,14 @@ struct ProfileView: View {
                 Button {
                     isPresentingWebLogin = true
                 } label: {
-                    BiliSymbolOrb(systemImage: "safari", tint: .blue, lightweight: true)
+                    compactToolbarButton(systemImage: "safari.fill", tint: .blue)
                 }
                 .buttonStyle(.plain)
 
                 Button {
                     isPresentingCookieEditor = true
                 } label: {
-                    BiliSymbolOrb(systemImage: "key.fill", tint: Color("AccentColor"), lightweight: true)
+                    compactToolbarButton(systemImage: "key.fill", tint: Color("AccentColor"))
                 }
                 .buttonStyle(.plain)
             }
@@ -461,6 +461,23 @@ struct ProfileView: View {
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                     .hasPrefix("\(name)=")
             }
+    }
+
+    private func compactToolbarButton(systemImage: String, tint: Color) -> some View {
+        Image(systemName: systemImage)
+            .symbolRenderingMode(.monochrome)
+            .font(.system(size: 18, weight: .semibold))
+            .foregroundColor(tint)
+            .frame(width: 42, height: 42)
+            .background(
+                Circle()
+                    .fill(Color(.systemBackground).opacity(0.96))
+            )
+            .overlay(
+                Circle()
+                    .stroke(Color.black.opacity(0.05), lineWidth: 0.8)
+            )
+            .shadow(color: .black.opacity(0.02), radius: 3, x: 0, y: 1)
     }
 
     private func summaryCard(title: String, value: String, systemImage: String, tint: Color) -> some View {

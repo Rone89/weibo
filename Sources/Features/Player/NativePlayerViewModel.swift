@@ -18,7 +18,7 @@ final class NativePlayerViewModel: ObservableObject {
     @Published private(set) var totalDurationSeconds: TimeInterval = 0
     @Published private(set) var isPlaying = false
     @Published private(set) var playbackRate: Float = 1
-    @Published var isShowingDanmakuOverlay = true
+    @Published var isShowingDanmakuOverlay = false
 
     let apiClient: BiliAPIClient
     let video: VideoSummary
@@ -61,9 +61,7 @@ final class NativePlayerViewModel: ObservableObject {
         self.playbackRate = Self.normalizedPlaybackRate(
             Float(defaults.double(forKey: PreferenceKeys.playbackRate))
         )
-        if defaults.object(forKey: PreferenceKeys.danmakuOverlay) != nil {
-            self.isShowingDanmakuOverlay = defaults.bool(forKey: PreferenceKeys.danmakuOverlay)
-        }
+        self.isShowingDanmakuOverlay = false
         if defaults.object(forKey: PreferenceKeys.preferredQuality) != nil {
             self.selectedQuality = defaults.integer(forKey: PreferenceKeys.preferredQuality)
         }
@@ -118,11 +116,6 @@ final class NativePlayerViewModel: ObservableObject {
 
             startObservingPlaybackTime()
             isLoading = false
-
-            danmakuTask = Task { [weak self] in
-                guard let self else { return }
-                await self.loadDanmakuIfNeeded()
-            }
 
             qualityHydrationTask = Task { [weak self] in
                 guard let self else { return }
@@ -563,33 +556,10 @@ final class NativePlayerViewModel: ObservableObject {
     }
 
     private func loadDanmakuIfNeeded() async {
-        guard danmakuItems.isEmpty else { return }
-        guard let cid = selectedPage?.cid ?? video.cid else { return }
-
-        isLoadingDanmaku = true
-        defer { isLoadingDanmaku = false }
-
-        do {
-            guard let danmakuURL = URL(string: "https://comment.bilibili.com/\(cid).xml") else {
-                throw APIError.invalidURL
-            }
-
-            var request = URLRequest(url: danmakuURL)
-            request.setValue(BiliAPIClient.userAgent, forHTTPHeaderField: "User-Agent")
-            let (data, response) = try await apiClient.session.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  200..<300 ~= httpResponse.statusCode else {
-                throw APIError.invalidResponse
-            }
-
-            let parsedItems = try await Task.detached(priority: .utility) {
-                DanmakuXMLParser().parse(data: data)
-            }.value
-            danmakuItems = parsedItems
-            updateVisibleDanmaku(at: currentPlaybackSeconds)
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        danmakuItems = []
+        visibleDanmaku = []
+        overlayDanmaku = []
+        isLoadingDanmaku = false
     }
 
     private func makeCompositeItem(videoURL: URL, audioURL: URL?) async throws -> AVPlayerItem? {

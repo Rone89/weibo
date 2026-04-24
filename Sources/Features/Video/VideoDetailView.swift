@@ -18,8 +18,7 @@ struct VideoDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 playerPanel
-                headerCard
-                overviewSection
+                titleSection
 
                 if let errorMessage = viewModel.errorMessage {
                     messageCard(text: errorMessage, tint: .red)
@@ -213,73 +212,38 @@ struct VideoDetailView: View {
         .zIndex(shouldDockPlayer ? 10 : 0)
     }
 
-    private var headerCard: some View {
-        ZStack(alignment: .bottomLeading) {
-            AsyncPosterImage(
-                urlString: viewModel.detail?.coverURL ?? viewModel.seedVideo.coverURL,
-                width: nil,
-                height: 220
-            )
-            .frame(maxWidth: .infinity)
-
-            LinearGradient(
-                colors: [.clear, .black.opacity(0.65)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 8) {
-                BiliMetricPill(text: L10n.nativeReady, systemImage: "play.tv.fill", tint: .white)
-                Text(currentTitle)
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(.white)
-                    .lineLimit(2)
-            }
-            .padding(18)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .biliHeroCardStyle(cornerRadius: 12, tint: .blue)
-    }
-
-    private var overviewSection: some View {
+    private var titleSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            BiliSectionHeader(
-                title: L10n.videoDetailOverviewTitle,
-                subtitle: L10n.videoDetailOverviewSubtitle
-            )
+            Text(currentTitle)
+                .font(.title3.weight(.bold))
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
 
-            LazyVGrid(columns: overviewColumns, spacing: 12) {
-                overviewMetricCard(
-                    title: L10n.videoDetailDurationTitle,
-                    value: BiliFormatting.duration(currentPlayableVideo.duration),
+            HStack(spacing: 10) {
+                BiliMetricPill(
+                    text: BiliFormatting.duration(currentPlayableVideo.duration),
                     systemImage: "clock.fill",
                     tint: .blue
                 )
-                overviewMetricCard(
-                    title: L10n.videoDetailPublishedTitle,
-                    value: BiliFormatting.relativeDate(viewModel.detail?.publishDate ?? viewModel.seedVideo.publishDate),
-                    systemImage: "calendar",
-                    tint: .orange
-                )
-                overviewMetricCard(
-                    title: L10n.videoDetailWatchingTitle,
-                    value: remoteWatchingText,
-                    systemImage: "play.circle.fill",
-                    tint: .teal
-                )
-                overviewMetricCard(
-                    title: L10n.videoPages,
-                    value: currentPageOverviewText,
-                    systemImage: "list.number",
-                    tint: .pink
-                )
+
+                if let published = viewModel.detail?.publishDate ?? viewModel.seedVideo.publishDate {
+                    BiliMetricPill(
+                        text: BiliFormatting.relativeDate(published),
+                        systemImage: "calendar",
+                        tint: .orange
+                    )
+                }
+
+                if let selectedPage {
+                    BiliMetricPill(
+                        text: L10n.pageTitle(page: selectedPage.page, part: selectedPage.part),
+                        systemImage: "list.number",
+                        tint: .pink
+                    )
+                }
             }
 
             VStack(alignment: .leading, spacing: 10) {
-                Text(L10n.videoDetailDescriptionTitle)
-                    .font(.subheadline.weight(.semibold))
-
                 Text(descriptionText)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -535,16 +499,6 @@ struct VideoDetailView: View {
         descriptionText.count > 120 || descriptionText.filter(\.isNewline).count >= 2
     }
 
-    private var currentPageOverviewText: String {
-        if let currentPage = selectedPage {
-            return L10n.pageTitle(page: currentPage.page, part: currentPage.part)
-        }
-
-        let pageCount = viewModel.detail?.pages.count ?? 0
-        guard pageCount > 0 else { return L10n.videoDetailSinglePart }
-        return L10n.videoDetailPageCount(pageCount)
-    }
-
     private var remoteWatchingText: String {
         guard let remoteResumeSeconds = viewModel.remoteResumeSeconds,
               remoteResumeSeconds > 5 else {
@@ -559,34 +513,6 @@ struct VideoDetailView: View {
         }
 
         return L10n.videoRemoteResume(BiliFormatting.duration(Int(remoteResumeSeconds.rounded())))
-    }
-
-    private var overviewColumns: [GridItem] {
-        [
-            GridItem(.flexible(), spacing: 12),
-            GridItem(.flexible(), spacing: 12)
-        ]
-    }
-
-    private func overviewMetricCard(title: String, value: String, systemImage: String, tint: Color) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                BiliSymbolOrb(systemImage: systemImage, tint: tint, size: 36, lightweight: true)
-                Spacer(minLength: 8)
-            }
-
-            Text(value)
-                .font(.headline.weight(.bold))
-                .foregroundStyle(.primary)
-                .lineLimit(2)
-
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .biliListCardStyle(cornerRadius: 24, tint: tint, interactive: true)
     }
 
     private func interactionTile(

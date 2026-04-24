@@ -98,7 +98,7 @@ struct DynamicView: View {
                 Spacer(minLength: 12)
 
                 Button(action: onTapProfile) {
-                    BiliSymbolOrb(systemImage: "person.crop.circle", tint: Color("AccentColor"), lightweight: true)
+                    compactToolbarButton(systemImage: "person.crop.circle.fill", tint: Color("AccentColor"))
                 }
                 .buttonStyle(.plain)
             }
@@ -126,12 +126,12 @@ struct DynamicView: View {
                         Text(feed.title)
                     }
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(viewModel.selectedFeed == feed ? .white : .primary)
+                    .foregroundColor(viewModel.selectedFeed == feed ? .white : .primary)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
                     .background(
                         Capsule()
-                            .fill(viewModel.selectedFeed == feed ? Color("AccentColor") : Color(.secondarySystemBackground).opacity(0.96))
+                            .fill(viewModel.selectedFeed == feed ? Color("AccentColor").opacity(0.96) : Color(.secondarySystemBackground).opacity(0.96))
                     )
                     .overlay(
                         Capsule()
@@ -146,7 +146,7 @@ struct DynamicView: View {
             Button {
                 Task { await viewModel.reload() }
             } label: {
-                BiliSymbolOrb(systemImage: "arrow.clockwise", tint: Color("AccentColor"), size: 40, lightweight: true)
+                compactToolbarButton(systemImage: "arrow.clockwise", tint: Color("AccentColor"))
             }
             .buttonStyle(.plain)
         }
@@ -178,10 +178,13 @@ struct DynamicView: View {
 
             LazyVStack(spacing: 14) {
                 ForEach(viewModel.items) { item in
-                    DynamicFeedCard(item: item, showsDetailLink: true)
-                        .onAppear {
-                            triggerLoadMoreIfNeeded(for: item)
-                        }
+                    NavigationLink(value: item) {
+                        DynamicFeedCard(item: item)
+                    }
+                    .buttonStyle(.plain)
+                    .onAppear {
+                        triggerLoadMoreIfNeeded(for: item)
+                    }
                 }
             }
 
@@ -209,11 +212,27 @@ struct DynamicView: View {
             await viewModel.loadMore()
         }
     }
+
+    private func compactToolbarButton(systemImage: String, tint: Color) -> some View {
+        Image(systemName: systemImage)
+            .symbolRenderingMode(.monochrome)
+            .font(.system(size: 18, weight: .semibold))
+            .foregroundColor(tint)
+            .frame(width: 42, height: 42)
+            .background(
+                Circle()
+                    .fill(Color(.systemBackground).opacity(0.96))
+            )
+            .overlay(
+                Circle()
+                    .stroke(Color.black.opacity(0.05), lineWidth: 0.8)
+            )
+            .shadow(color: .black.opacity(0.02), radius: 3, x: 0, y: 1)
+    }
 }
 
 struct DynamicFeedCard: View {
     let item: DynamicFeedItem
-    var showsDetailLink = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -237,10 +256,7 @@ struct DynamicFeedCard: View {
             }
 
             if let video = item.video {
-                NavigationLink(value: video) {
-                    DynamicEmbeddedVideoCard(video: video)
-                }
-                .buttonStyle(.plain)
+                DynamicEmbeddedVideoCard(video: video)
             }
 
             if let quoted = item.quoted {
@@ -255,28 +271,8 @@ struct DynamicFeedCard: View {
 
     private var authorRow: some View {
         HStack(spacing: 12) {
-            authorLinkContent
-
-            Spacer(minLength: 0)
-
-            if showsDetailLink {
-                NavigationLink(value: item) {
-                    BiliSymbolOrb(systemImage: "arrow.right.circle.fill", tint: Color("AccentColor"), size: 38, lightweight: true)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var authorLinkContent: some View {
-        if let authorReference {
-            NavigationLink(value: authorReference) {
-                authorIdentityContent
-            }
-            .buttonStyle(.plain)
-        } else {
             authorIdentityContent
+            Spacer(minLength: 0)
         }
     }
 
@@ -320,11 +316,6 @@ struct DynamicFeedCard: View {
                 .foregroundStyle(.secondary)
             }
         }
-    }
-
-    private var authorReference: UserReference? {
-        guard let mid = item.author.mid, mid > 0 else { return nil }
-        return UserReference(mid: mid, name: item.author.name, avatarURL: item.author.avatarURL)
     }
 
     private var statRow: some View {

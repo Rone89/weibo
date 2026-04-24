@@ -217,7 +217,6 @@ struct NativePlayerView: View {
     private var playerControlCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             playerHeader
-            playbackOverviewSection
 
             if preferredSurfaceMode == .native {
                 transportSection
@@ -225,8 +224,6 @@ struct NativePlayerView: View {
                 if !viewModel.qualityOptions.isEmpty {
                     qualitySection
                 }
-
-                danmakuSection
 
                 if let errorMessage = viewModel.errorMessage {
                     Text(errorMessage)
@@ -291,10 +288,6 @@ struct NativePlayerView: View {
                     BiliMetricPill(
                         text: L10n.qualityCount(viewModel.qualityOptions.count),
                         systemImage: "rectangle.compress.vertical"
-                    )
-                    BiliMetricPill(
-                        text: L10n.danmakuCount(viewModel.danmakuItems.count),
-                        systemImage: "text.bubble"
                     )
                     if let source = viewModel.source, source.mode != .webFallback {
                         BiliMetricPill(
@@ -946,9 +939,13 @@ private struct InteractivePlayerSurface: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.black)
 
-                danmakuOverlay(in: proxy.size)
-
                 doubleTapHotspots
+
+                if !showsChrome {
+                    embeddedFullscreenButton
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                        .padding(14)
+                }
 
                 if showsChrome && areControlsVisible {
                     playerChrome
@@ -1014,9 +1011,6 @@ private struct InteractivePlayerSurface: View {
                     VStack(alignment: .leading, spacing: 8) {
                         if let quality = viewModel.source?.currentQualityLabel {
                             playerBadge("\(L10n.currentQuality): \(quality)", systemImage: "sparkles.tv")
-                        }
-                        if viewModel.isShowingDanmakuOverlay {
-                            playerBadge(L10n.danmakuTrackStyle, systemImage: "text.line.first.and.arrowtriangle.forward")
                         }
                         playerBadge("\(L10n.playerAspectTitle): \(aspectMode.title)", systemImage: aspectMode.systemImage)
                         if isSpeedBoostActive {
@@ -1107,23 +1101,23 @@ private struct InteractivePlayerSurface: View {
                                 .frame(width: 36, height: 36)
                                 .background(.white.opacity(0.14), in: Circle())
                         }
-
-                        Button {
-                            viewModel.setDanmakuOverlay(!viewModel.isShowingDanmakuOverlay)
-                            scheduleAutoHideIfNeeded()
-                        } label: {
-                            Image(systemName: viewModel.isShowingDanmakuOverlay ? "text.bubble.fill" : "text.bubble")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundStyle(.white)
-                                .frame(width: 36, height: 36)
-                                .background(.white.opacity(0.14), in: Circle())
-                        }
                     }
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 14)
             }
         }
+    }
+
+    private var embeddedFullscreenButton: some View {
+        Button(action: onToggleFullscreen) {
+            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 38, height: 38)
+                .background(.black.opacity(0.42), in: Circle())
+        }
+        .buttonStyle(.plain)
     }
 
     private var progressBar: some View {

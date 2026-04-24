@@ -129,8 +129,9 @@ struct BiliSymbolOrb: View {
 
     var body: some View {
         let orb = Image(systemName: systemImage)
+            .symbolRenderingMode(.monochrome)
             .font(.system(size: size * 0.42, weight: .semibold))
-            .foregroundStyle(tint)
+            .foregroundColor(tint)
             .frame(width: size, height: size)
             .background(
                 Circle()
