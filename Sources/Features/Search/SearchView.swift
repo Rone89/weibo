@@ -290,18 +290,6 @@ struct SearchView: View {
         switch viewModel.selectedScope {
         case .video:
             videoResultsList
-        case .bangumi:
-            LazyVStack(spacing: 14) {
-                ForEach(bangumiResults) { item in
-                    SearchBangumiCard(item: item)
-                }
-            }
-        case .liveRoom:
-            LazyVStack(spacing: 14) {
-                ForEach(liveResults) { item in
-                    SearchLiveRoomCard(item: item)
-                }
-            }
         case .user:
             LazyVStack(spacing: 14) {
                 ForEach(userResults) { item in
@@ -503,20 +491,6 @@ struct SearchView: View {
         }
     }
 
-    private var bangumiResults: [SearchBangumiResult] {
-        viewModel.results.compactMap { item in
-            guard case let .bangumi(result) = item else { return nil }
-            return result
-        }
-    }
-
-    private var liveResults: [SearchLiveRoomResult] {
-        viewModel.results.compactMap { item in
-            guard case let .liveRoom(result) = item else { return nil }
-            return result
-        }
-    }
-
     private var userResults: [SearchUserResult] {
         viewModel.results.compactMap { item in
             guard case let .user(result) = item else { return nil }
@@ -666,107 +640,6 @@ private struct SearchKeywordPanel<Content: View>: View {
         }
         .padding(18)
         .biliListCardStyle(tint: Color("AccentColor"))
-    }
-}
-
-private struct SearchBangumiCard: View {
-    let item: SearchBangumiResult
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            AsyncPosterImage(urlString: item.coverURL, width: 108, height: 144)
-
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    if let seasonTypeName = item.seasonTypeName, !seasonTypeName.isEmpty {
-                        BiliMetricPill(text: seasonTypeName, systemImage: "sparkles.tv", tint: .orange)
-                    }
-                    if let score = item.score, !score.isEmpty {
-                        BiliMetricPill(text: score, systemImage: "star.fill", tint: .pink)
-                    }
-                }
-
-                Text(item.title)
-                    .font(.headline.weight(.bold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-
-                if let indexShow = item.indexShow, !indexShow.isEmpty {
-                    Text(indexShow)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Color("AccentColor"))
-                }
-
-                if let description = item.description, !description.isEmpty {
-                    Text(description)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(3)
-                }
-
-                let meta = [item.areas, item.styles].compactMap { value in
-                    guard let value, !value.isEmpty else { return nil }
-                    return value
-                }.joined(separator: " / ")
-                if !meta.isEmpty {
-                    Text(meta)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(16)
-        .biliListCardStyle(tint: .orange, interactive: true)
-    }
-}
-
-private struct SearchLiveRoomCard: View {
-    let item: SearchLiveRoomResult
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            AsyncPosterImage(urlString: item.coverURL, width: 132, height: 84)
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text(item.title)
-                    .font(.headline.weight(.bold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-
-                Text(item.streamerName)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color("AccentColor"))
-
-                HStack(spacing: 8) {
-                    if let onlineCount = item.onlineCount {
-                        Label(BiliFormatting.compactCount(onlineCount), systemImage: "dot.radiowaves.left.and.right")
-                    }
-                    if let categoryName = item.categoryName, !categoryName.isEmpty {
-                        Label(categoryName, systemImage: "tv")
-                    }
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-                let liveMeta = [item.liveTimeLabel, item.tags].compactMap { value in
-                    guard let value, !value.isEmpty else { return nil }
-                    return value
-                }.joined(separator: " / ")
-                if !liveMeta.isEmpty {
-                    Text(liveMeta)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(16)
-        .biliListCardStyle(tint: .pink, interactive: true)
     }
 }
 

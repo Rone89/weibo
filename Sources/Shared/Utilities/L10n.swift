@@ -214,6 +214,7 @@ enum L10n {
     static let homeNativeSubtitle = "\u{7528} SwiftUI \u{539f}\u{751f}\u{91cd}\u{7ec4}\u{63a8}\u{8350}\u{3001}\u{641c}\u{7d22}\u{4e0e}\u{4e2a}\u{4eba}\u{7a7a}\u{95f4}\u{3002}"
     static let homeFeaturedTitle = "\u{4eca}\u{65e5}\u{7cbe}\u{9009}"
     static let homeFeaturedSubtitle = "\u{628a}\u{5f53}\u{524d}\u{9891}\u{9053}\u{91cc}\u{6700}\u{503c}\u{5f97}\u{7acb}\u{5373}\u{70b9}\u{5f00}\u{7684}\u{5185}\u{5bb9}\u{653e}\u{5230}\u{6700}\u{524d}\u{9762}"
+    static let homeRecommendedSubtitleCount = "\u{6761}\u{63a8}\u{8350}"
     static let homeQuickActionsSubtitle = "\u{641c}\u{7d22}\u{3001}\u{70ed}\u{95e8}\u{3001}\u{8fdc}\u{7a0b}\u{5386}\u{53f2}\u{548c}\u{4e2a}\u{4eba}\u{5165}\u{53e3}\u{90fd}\u{653e}\u{5728}\u{9996}\u{9875}"
     static let homeLiveTitle = "\u{70ed}\u{95e8}\u{76f4}\u{64ad}"
     static let homeLiveSubtitle = "\u{5148}\u{770b}\u{5f53}\u{4e0b}\u{6bd4}\u{8f83}\u{6d3b}\u{8dc3}\u{7684}\u{76f4}\u{64ad}\u{95f4}\u{548c}\u{4e3b}\u{64ad}"
@@ -522,6 +523,10 @@ enum L10n {
 
     static func contentSubtitle(_ count: Int) -> String {
         "\(count) \u{6761}\u{5185}\u{5bb9}"
+    }
+
+    static func homeRecommendedSubtitle(_ count: Int) -> String {
+        "\(count) \(homeRecommendedSubtitleCount)"
     }
 
     static func dynamicCountSubtitle(_ count: Int) -> String {

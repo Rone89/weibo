@@ -98,7 +98,7 @@ struct NativePlayerView: View {
         initialSeekSeconds: TimeInterval? = nil
     ) {
         self.displayMode = displayMode
-        _preferredSurfaceMode = State(initialValue: Self.loadPreferredSurfaceMode())
+        _preferredSurfaceMode = State(initialValue: displayMode == .embedded ? .native : Self.loadPreferredSurfaceMode())
         _preferredAspectMode = State(initialValue: Self.loadPreferredAspectMode())
         _viewModel = StateObject(
             wrappedValue: NativePlayerViewModel(
@@ -181,9 +181,15 @@ struct NativePlayerView: View {
     }
 
     private var playerContent: some View {
-        VStack(spacing: 18) {
-            playerArea
-            playerControlCard
+        Group {
+            if displayMode == .embedded {
+                playerArea
+            } else {
+                VStack(spacing: 18) {
+                    playerArea
+                    playerControlCard
+                }
+            }
         }
     }
 
@@ -194,6 +200,7 @@ struct NativePlayerView: View {
                 InteractivePlayerSurface(
                     viewModel: viewModel,
                     isFullscreen: false,
+                    showsChrome: displayMode == .standalone,
                     aspectMode: preferredAspectMode,
                     onSelectAspectMode: setPreferredAspectMode,
                     onToggleFullscreen: {
@@ -813,6 +820,7 @@ private struct NativePlayerFullscreenView: View {
                 InteractivePlayerSurface(
                     viewModel: viewModel,
                     isFullscreen: true,
+                    showsChrome: true,
                     aspectMode: aspectMode,
                     onSelectAspectMode: onSelectAspectMode,
                     onToggleFullscreen: {
@@ -915,6 +923,7 @@ private struct InteractivePlayerSurface: View {
 
     @ObservedObject var viewModel: NativePlayerViewModel
     let isFullscreen: Bool
+    let showsChrome: Bool
     let aspectMode: PlayerAspectMode
     let onSelectAspectMode: (PlayerAspectMode) -> Void
     let onToggleFullscreen: () -> Void
@@ -942,7 +951,7 @@ private struct InteractivePlayerSurface: View {
 
                 doubleTapHotspots
 
-                if areControlsVisible {
+                if showsChrome && areControlsVisible {
                     playerChrome
                         .transition(.opacity)
                 }
@@ -961,6 +970,7 @@ private struct InteractivePlayerSurface: View {
             .highPriorityGesture(dragGesture(in: proxy.size))
             .simultaneousGesture(speedBoostGesture)
             .onTapGesture {
+                guard showsChrome else { return }
                 toggleControls()
             }
         }
@@ -1147,21 +1157,21 @@ private struct InteractivePlayerSurface: View {
         HStack(spacing: 0) {
             Color.clear
                 .contentShape(Rectangle())
-                .allowsHitTesting(!areControlsVisible)
+                .allowsHitTesting(!showsChrome || !areControlsVisible)
                 .onTapGesture(count: 2) {
                     handleDoubleTapSeek(delta: -10, icon: "gobackward.10", text: L10n.jumpBackward10)
                 }
 
             Color.clear
                 .contentShape(Rectangle())
-                .allowsHitTesting(!areControlsVisible)
+                .allowsHitTesting(!showsChrome || !areControlsVisible)
                 .onTapGesture(count: 2) {
                     handleDoubleTapPlaybackToggle()
                 }
 
             Color.clear
                 .contentShape(Rectangle())
-                .allowsHitTesting(!areControlsVisible)
+                .allowsHitTesting(!showsChrome || !areControlsVisible)
                 .onTapGesture(count: 2) {
                     handleDoubleTapSeek(delta: 15, icon: "goforward.15", text: L10n.jumpForward15)
                 }

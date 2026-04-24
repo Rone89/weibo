@@ -14,21 +14,17 @@ struct RootTabView: View {
 
     var body: some View {
         TabView(selection: $selection) {
-            HomeView(
-                apiClient: appEnvironment.apiClient,
-                onTapSearch: { selection = .search },
-                onTapDynamic: { selection = .dynamic },
-                onTapHistory: { selection = .history },
-                onTapProfile: { selection = .profile }
-            )
+            HomeView(apiClient: appEnvironment.apiClient)
             .tabItem {
-                Label(L10n.tabHome, systemImage: "house.fill")
+                Image(systemName: "house")
+                Text(L10n.tabHome)
             }
             .tag(RootTab.home)
 
             SearchView(apiClient: appEnvironment.apiClient)
                 .tabItem {
-                    Label(L10n.tabSearch, systemImage: "magnifyingglass")
+                    Image(systemName: "magnifyingglass")
+                    Text(L10n.tabSearch)
                 }
                 .tag(RootTab.search)
 
@@ -38,7 +34,8 @@ struct RootTabView: View {
                 onTapProfile: { selection = .profile }
             )
             .tabItem {
-                Label(L10n.tabDynamic, systemImage: "bubble.left.and.bubble.right.fill")
+                Image(systemName: "square.grid.2x2")
+                Text(L10n.tabDynamic)
             }
             .tag(RootTab.dynamic)
 
@@ -46,7 +43,8 @@ struct RootTabView: View {
                 HistoryView(apiClient: appEnvironment.apiClient)
             }
                 .tabItem {
-                    Label(L10n.historyTitle, systemImage: "clock.arrow.circlepath")
+                    Image(systemName: "clock")
+                    Text(L10n.historyTitle)
                 }
             .tag(RootTab.history)
 
@@ -55,7 +53,8 @@ struct RootTabView: View {
                 sessionStore: appEnvironment.sessionStore
             )
             .tabItem {
-                Label(L10n.tabProfile, systemImage: "person.crop.circle.fill")
+                Image(systemName: "person")
+                Text(L10n.tabProfile)
             }
             .tag(RootTab.profile)
         }

@@ -2,8 +2,6 @@ import Foundation
 
 enum SearchScope: String, CaseIterable, Identifiable {
     case video
-    case bangumi
-    case liveRoom
     case user
 
     var id: String { rawValue }
@@ -12,10 +10,6 @@ enum SearchScope: String, CaseIterable, Identifiable {
         switch self {
         case .video:
             return L10n.searchScopeVideo
-        case .bangumi:
-            return L10n.searchScopeBangumi
-        case .liveRoom:
-            return L10n.searchScopeLive
         case .user:
             return L10n.searchScopeUser
         }
@@ -25,10 +19,6 @@ enum SearchScope: String, CaseIterable, Identifiable {
         switch self {
         case .video:
             return "video"
-        case .bangumi:
-            return "media_bangumi"
-        case .liveRoom:
-            return "live_room"
         case .user:
             return "bili_user"
         }
@@ -42,10 +32,6 @@ enum SearchScope: String, CaseIterable, Identifiable {
         switch self {
         case .video:
             return "play.rectangle.fill"
-        case .bangumi:
-            return "sparkles.tv"
-        case .liveRoom:
-            return "dot.radiowaves.left.and.right"
         case .user:
             return "person.2.fill"
         }
@@ -107,81 +93,15 @@ enum VideoDurationFilter: Int, CaseIterable, Identifiable {
 
 enum SearchResultItem: Identifiable, Hashable {
     case video(VideoSummary)
-    case bangumi(SearchBangumiResult)
-    case liveRoom(SearchLiveRoomResult)
     case user(SearchUserResult)
 
     var id: String {
         switch self {
         case .video(let video):
             return "video-\(video.id)"
-        case .bangumi(let item):
-            return "bangumi-\(item.id)"
-        case .liveRoom(let item):
-            return "live-\(item.id)"
         case .user(let item):
             return "user-\(item.id)"
         }
-    }
-}
-
-struct SearchBangumiResult: Identifiable, Hashable {
-    let mediaID: Int
-    let seasonID: Int?
-    let title: String
-    let originalTitle: String?
-    let seasonTypeName: String?
-    let coverURL: String?
-    let areas: String?
-    let styles: String?
-    let description: String?
-    let indexShow: String?
-    let score: String?
-
-    var id: Int { mediaID }
-
-    init(json: [String: Any]) {
-        let mediaScore = JSONValue.dictionary(json["media_score"])
-        let rawScore = JSONValue.string(mediaScore?["score"]) ?? JSONValue.string(mediaScore?["user_count"])
-
-        self.mediaID = JSONValue.int(json["media_id"]) ?? JSONValue.int(json["season_id"]) ?? 0
-        self.seasonID = JSONValue.int(json["season_id"])
-        self.title = HTMLSanitizer.plainText(JSONValue.string(json["title"]))
-        self.originalTitle = HTMLSanitizer.plainText(JSONValue.string(json["org_title"]))
-        self.seasonTypeName = JSONValue.string(json["season_type_name"])
-        self.coverURL = JSONValue.string(json["cover"])?.normalizedBiliURLString
-        self.areas = HTMLSanitizer.plainText(JSONValue.string(json["areas"]))
-        self.styles = HTMLSanitizer.plainText(JSONValue.string(json["styles"]))
-        self.description = HTMLSanitizer.plainText(JSONValue.string(json["desc"]))
-        self.indexShow = JSONValue.string(json["index_show"])
-        self.score = rawScore
-    }
-}
-
-struct SearchLiveRoomResult: Identifiable, Hashable {
-    let roomID: Int
-    let title: String
-    let coverURL: String?
-    let streamerName: String
-    let streamerAvatarURL: String?
-    let onlineCount: Int?
-    let categoryName: String?
-    let liveTimeLabel: String?
-    let tags: String?
-
-    var id: Int { roomID }
-
-    init(json: [String: Any]) {
-        let rawName = HTMLSanitizer.plainText(JSONValue.string(json["uname"]))
-        self.roomID = JSONValue.int(json["roomid"]) ?? 0
-        self.title = HTMLSanitizer.plainText(JSONValue.string(json["title"]))
-        self.coverURL = (JSONValue.string(json["cover"]) ?? JSONValue.string(json["pic"]))?.normalizedBiliURLString
-        self.streamerName = rawName.isEmpty ? L10n.unknownUP : rawName
-        self.streamerAvatarURL = JSONValue.string(json["uface"])?.normalizedBiliURLString
-        self.onlineCount = JSONValue.int(json["online"])
-        self.categoryName = HTMLSanitizer.plainText(JSONValue.string(json["cate_name"]))
-        self.liveTimeLabel = JSONValue.string(json["live_time"])
-        self.tags = HTMLSanitizer.plainText(JSONValue.string(json["tags"]))
     }
 }
 

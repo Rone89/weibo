@@ -107,51 +107,9 @@ struct DynamicDetailView: View {
     private func heroPanel(_ item: DynamicFeedItem) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top, spacing: 14) {
-                AsyncPosterImage(urlString: item.author.avatarURL, width: 58, height: 58)
-                    .clipShape(Circle())
-
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
-                        Text(item.author.name)
-                            .font(.title3.weight(.bold))
-                            .foregroundStyle(.primary)
-
-                        if let badge = item.author.badgeText, !badge.isEmpty {
-                            Text(badge)
-                                .font(.caption2.weight(.bold))
-                                .foregroundStyle(Color("AccentColor"))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color("AccentColor").opacity(0.12), in: Capsule())
-                        }
-                    }
-
-                    HStack(spacing: 8) {
-                        if let actionLabel = item.actionLabel, !actionLabel.isEmpty {
-                            heroMetaChip(actionLabel)
-                        }
-                        if let publishLabel = item.publishLabel, !publishLabel.isEmpty {
-                            heroMetaChip(publishLabel)
-                        } else {
-                            heroMetaChip(BiliFormatting.relativeDate(item.publishedAt))
-                        }
-                    }
-
-                    if let topic = item.topic, !topic.isEmpty {
-                        Text("#\(topic)")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Color("AccentColor"))
-                    }
-                }
+                authorHeader(item)
 
                 Spacer(minLength: 0)
-
-                if let reference = authorReference(item) {
-                    NavigationLink(value: reference) {
-                        BiliSymbolOrb(systemImage: "person.crop.circle", tint: .blue, size: 38, lightweight: true)
-                    }
-                    .buttonStyle(.plain)
-                }
             }
 
             HStack(spacing: 10) {
@@ -174,6 +132,62 @@ struct DynamicDetailView: View {
         }
         .padding(20)
         .biliListCardStyle(tint: .pink, interactive: true)
+    }
+
+    @ViewBuilder
+    private func authorHeader(_ item: DynamicFeedItem) -> some View {
+        if let reference = authorReference(item) {
+            NavigationLink(value: reference) {
+                authorHeaderContent(item)
+            }
+            .buttonStyle(.plain)
+        } else {
+            authorHeaderContent(item)
+        }
+    }
+
+    private func authorHeaderContent(_ item: DynamicFeedItem) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            AsyncPosterImage(urlString: item.author.avatarURL, width: 58, height: 58)
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Text(item.author.name)
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+
+                    if let badge = item.author.badgeText, !badge.isEmpty {
+                        Text(badge)
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(Color("AccentColor"))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color("AccentColor").opacity(0.12), in: Capsule())
+                            .lineLimit(1)
+                    }
+                }
+
+                HStack(spacing: 8) {
+                    if let actionLabel = item.actionLabel, !actionLabel.isEmpty {
+                        heroMetaChip(actionLabel)
+                    }
+                    if let publishLabel = item.publishLabel, !publishLabel.isEmpty {
+                        heroMetaChip(publishLabel)
+                    } else {
+                        heroMetaChip(BiliFormatting.relativeDate(item.publishedAt))
+                    }
+                }
+
+                if let topic = item.topic, !topic.isEmpty {
+                    Text("#\(topic)")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color("AccentColor"))
+                        .lineLimit(1)
+                }
+            }
+        }
     }
 
     private func readingSection(_ item: DynamicFeedItem) -> some View {

@@ -104,6 +104,9 @@ struct VideoCommentsSection: View {
                                 threadTarget = comment
                             } : nil
                         )
+                        .onAppear {
+                            triggerLoadMoreIfNeeded(for: comment)
+                        }
                     }
                 }
 
@@ -241,6 +244,13 @@ struct VideoCommentsSection: View {
             )
         }
         .buttonStyle(.plain)
+    }
+
+    private func triggerLoadMoreIfNeeded(for comment: VideoComment) {
+        guard viewModel.canLoadMore else { return }
+        let triggerIDs = Set(viewModel.replies.suffix(2).map(\.id))
+        guard triggerIDs.contains(comment.id) else { return }
+        Task { await viewModel.loadMore() }
     }
 }
 
@@ -562,6 +572,9 @@ private struct VideoCommentRepliesSheet: View {
                                     },
                                     onOpenThread: nil
                                 )
+                                .onAppear {
+                                    triggerLoadMoreIfNeeded(for: reply)
+                                }
                             }
                         }
 
@@ -647,6 +660,13 @@ private struct VideoCommentRepliesSheet: View {
         }
         .padding(16)
         .biliListCardStyle(cornerRadius: 24, tint: .blue)
+    }
+
+    private func triggerLoadMoreIfNeeded(for comment: VideoComment) {
+        guard viewModel.canLoadMore else { return }
+        let triggerIDs = Set(viewModel.replies.suffix(2).map(\.id))
+        guard triggerIDs.contains(comment.id) else { return }
+        Task { await viewModel.loadMore() }
     }
 }
 

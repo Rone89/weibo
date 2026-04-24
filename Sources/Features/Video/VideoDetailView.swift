@@ -7,6 +7,8 @@ struct VideoDetailView: View {
     @State private var shouldIgnoreResume = false
     @State private var isDescriptionExpanded = false
     @State private var isPresentingFavoritePicker = false
+    @State private var playerPanelMinY: CGFloat = 0
+    @State private var commentsSectionMinY: CGFloat = .greatestFiniteMagnitude
 
     init(viewModel: VideoDetailViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -67,19 +69,6 @@ struct VideoDetailView: View {
                     }
                 }
 
-                if !viewModel.relatedVideos.isEmpty {
-                    section(title: L10n.relatedVideos, subtitle: L10n.relatedSubtitle) {
-                        LazyVStack(spacing: 14) {
-                            ForEach(viewModel.relatedVideos) { video in
-                                NavigationLink(value: video) {
-                                    VideoRow(video: video)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
-                }
-
                 if viewModel.isLoading {
                     ProgressView(L10n.videoDetailLoading)
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -90,6 +79,7 @@ struct VideoDetailView: View {
             .padding(.top, 12)
             .padding(.bottom, 24)
         }
+        .coordinateSpace(name: "videoDetailScroll")
         .background {
             BiliBackground {
                 Color.clear
@@ -179,7 +169,7 @@ struct VideoDetailView: View {
 
     private var playerPanel: some View {
         VStack(alignment: .leading, spacing: 14) {
-            if viewModel.hasRemoteResume {
+            if viewModel.hasRemoteResume && !shouldDockPlayer {
                 HStack(spacing: 10) {
                     if let remoteResumeSeconds = viewModel.remoteResumeSeconds,
                        selectedPage?.cid == viewModel.remoteResumeCID {
@@ -208,6 +198,19 @@ struct VideoDetailView: View {
                     .biliListCardStyle()
             }
         }
+        .background(positionTracker { playerPanelMinY = $0 })
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(shouldDockPlayer ? Color(.systemBackground).opacity(0.96) : .clear)
+                .shadow(color: .black.opacity(shouldDockPlayer ? 0.08 : 0), radius: 8, x: 0, y: 4)
+        )
+        .scaleEffect(shouldDockPlayer ? 0.54 : 1, anchor: .topTrailing)
+        .offset(
+            x: shouldDockPlayer ? 108 : 0,
+            y: shouldDockPlayer ? dockedPlayerOffset : 0
+        )
+        .allowsHitTesting(!shouldDockPlayer)
+        .zIndex(shouldDockPlayer ? 10 : 0)
     }
 
     private var headerCard: some View {
@@ -466,6 +469,14 @@ struct VideoDetailView: View {
         viewModel.hasRemoteResume
     }
 
+    private var shouldDockPlayer: Bool {
+        playerPanelMinY < -12 && commentsSectionMinY < 280
+    }
+
+    private var dockedPlayerOffset: CGFloat {
+        -playerPanelMinY + 6
+    }
+
     private var creatorReference: UserReference? {
         let mid = viewModel.detail?.authorID ?? viewModel.seedVideo.authorID
         guard let mid, mid > 0 else { return nil }
@@ -512,6 +523,7 @@ struct VideoDetailView: View {
         )
         .padding(18)
         .biliListCardStyle()
+        .background(positionTracker { commentsSectionMinY = $0 })
     }
 
     private var descriptionText: String {
@@ -624,6 +636,19 @@ struct VideoDetailView: View {
         }
         .padding(18)
         .biliListCardStyle()
+    }
+
+    private func positionTracker(_ onChange: @escaping (CGFloat) -> Void) -> some View {
+        GeometryReader { proxy in
+            let minY = proxy.frame(in: .named("videoDetailScroll")).minY
+            Color.clear
+                .onAppear {
+                    onChange(minY)
+                }
+                .onChange(of: minY) { newValue in
+                    onChange(newValue)
+                }
+        }
     }
 }
 

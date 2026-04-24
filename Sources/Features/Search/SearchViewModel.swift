@@ -237,10 +237,6 @@ final class SearchViewModel: ObservableObject {
         let items: [SearchResultItem] = switch scope {
         case .video:
             JSONValue.dictionaries(data["result"]).map { .video(VideoSummary(json: $0)) }
-        case .bangumi:
-            JSONValue.dictionaries(data["result"]).map { .bangumi(SearchBangumiResult(json: $0)) }
-        case .liveRoom:
-            JSONValue.dictionaries(data["result"]).map { .liveRoom(SearchLiveRoomResult(json: $0)) }
         case .user:
             JSONValue.dictionaries(data["result"]).map { .user(SearchUserResult(json: $0)) }
         }

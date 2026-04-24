@@ -3,7 +3,6 @@ import Foundation
 @MainActor
 final class VideoDetailViewModel: ObservableObject {
     @Published private(set) var detail: VideoDetail?
-    @Published private(set) var relatedVideos: [VideoSummary] = []
     @Published private(set) var relation: VideoRelationState?
     @Published private(set) var favoriteFolders: [FavoriteFolder] = []
     @Published private(set) var remoteResumeSeconds: TimeInterval?
@@ -86,11 +85,8 @@ final class VideoDetailViewModel: ObservableObject {
         remoteResumeCID = nil
 
         do {
-            async let detail = fetchVideoDetail()
-            async let related = fetchRelatedVideos()
-            let loadedDetail = try await detail
+            let loadedDetail = try await fetchVideoDetail()
             self.detail = loadedDetail
-            self.relatedVideos = try await related
             relation = try? await fetchVideoRelation(detail: loadedDetail)
             try? await hydrateRemoteResume(detail: loadedDetail)
             self.hasLoaded = true
@@ -344,15 +340,6 @@ final class VideoDetailViewModel: ObservableObject {
         )
         return VideoDetail(json: data)
     }
-
-    private func fetchRelatedVideos() async throws -> [VideoSummary] {
-        let data = try await apiClient.requestEnvelopeArray(
-            path: BiliEndpoint.relatedVideos,
-            query: ["bvid": seedVideo.bvid]
-        )
-        return data.map(VideoSummary.init)
-    }
-
     private func fetchVideoRelation(detail: VideoDetail) async throws -> VideoRelationState {
         let aid = detail.aid ?? seedVideo.aid
         let bvid = detail.bvid.isEmpty ? seedVideo.bvid : detail.bvid

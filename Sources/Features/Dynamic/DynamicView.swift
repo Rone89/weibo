@@ -255,6 +255,33 @@ struct DynamicFeedCard: View {
 
     private var authorRow: some View {
         HStack(spacing: 12) {
+            authorLinkContent
+
+            Spacer(minLength: 0)
+
+            if showsDetailLink {
+                NavigationLink(value: item) {
+                    BiliSymbolOrb(systemImage: "arrow.right.circle.fill", tint: Color("AccentColor"), size: 38, lightweight: true)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var authorLinkContent: some View {
+        if let authorReference {
+            NavigationLink(value: authorReference) {
+                authorIdentityContent
+            }
+            .buttonStyle(.plain)
+        } else {
+            authorIdentityContent
+        }
+    }
+
+    private var authorIdentityContent: some View {
+        HStack(spacing: 12) {
             AsyncPosterImage(urlString: item.author.avatarURL, width: 48, height: 48)
                 .clipShape(Circle())
 
@@ -263,6 +290,7 @@ struct DynamicFeedCard: View {
                     Text(item.author.name)
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(.primary)
+                        .lineLimit(1)
 
                     if let badge = item.author.badgeText, !badge.isEmpty {
                         Text(badge)
@@ -271,37 +299,25 @@ struct DynamicFeedCard: View {
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
                             .background(Color("AccentColor").opacity(0.12), in: Capsule())
+                            .lineLimit(1)
                     }
                 }
 
                 HStack(spacing: 6) {
                     if let actionLabel = item.actionLabel, !actionLabel.isEmpty {
                         Text(actionLabel)
+                            .lineLimit(1)
                     }
                     if let publishLabel = item.publishLabel, !publishLabel.isEmpty {
                         Text(publishLabel)
+                            .lineLimit(1)
                     } else {
                         Text(BiliFormatting.relativeDate(item.publishedAt))
+                            .lineLimit(1)
                     }
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            }
-
-            Spacer(minLength: 0)
-
-            if let authorReference {
-                NavigationLink(value: authorReference) {
-                    BiliSymbolOrb(systemImage: "person.crop.circle", tint: .blue, size: 38, lightweight: true)
-                }
-                .buttonStyle(.plain)
-            }
-
-            if showsDetailLink {
-                NavigationLink(value: item) {
-                    BiliSymbolOrb(systemImage: "arrow.right.circle.fill", tint: Color("AccentColor"), size: 38, lightweight: true)
-                }
-                .buttonStyle(.plain)
             }
         }
     }
@@ -404,7 +420,6 @@ struct DynamicImageGrid: View {
         if images.count == 1, let first = images.first {
             AsyncPosterImage(urlString: first.url, width: nil, height: 220)
                 .frame(maxWidth: .infinity)
-                .drawingGroup(opaque: true)
         } else {
             LazyVGrid(columns: columns, spacing: 10) {
                 ForEach(images.prefix(4)) { image in
