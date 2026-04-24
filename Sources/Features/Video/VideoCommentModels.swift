@@ -5,6 +5,8 @@ struct VideoCommentPage: Hashable {
     let replies: [VideoComment]
     let nextOffset: String
     let isEnd: Bool
+    let isLegacyPaging: Bool
+    let nextPageNumber: Int
     let totalCount: Int
     let inputPlaceholder: String?
     let childInputPlaceholder: String?
@@ -12,15 +14,43 @@ struct VideoCommentPage: Hashable {
     init(json: [String: Any]) {
         let cursor = JSONValue.dictionary(json["cursor"]) ?? [:]
         let pagination = JSONValue.dictionary(cursor["pagination_reply"]) ?? [:]
+        let page = JSONValue.dictionary(json["page"]) ?? [:]
         let control = JSONValue.dictionary(json["control"]) ?? [:]
+        let upper = JSONValue.dictionary(json["upper"]) ?? [:]
 
-        self.topReplies = JSONValue.dictionaries(json["top_replies"]).map(VideoComment.init)
+        let parsedTopReplies =
+            JSONValue.dictionaries(json["top_replies"]) +
+            JSONValue.dictionaries(json["hots"]) +
+            [JSONValue.dictionary(upper["top"])].compactMap { $0 }
+
+        self.topReplies = parsedTopReplies.reduce(into: [VideoComment]()) { partialResult, item in
+            let comment = VideoComment(json: item)
+            if !partialResult.contains(where: { $0.id == comment.id }) {
+                partialResult.append(comment)
+            }
+        }
         self.replies = JSONValue.dictionaries(json["replies"]).map(VideoComment.init)
         self.nextOffset = JSONValue.string(pagination["next_offset"]) ?? ""
-        self.isEnd = JSONValue.bool(cursor["is_end"]) ?? false
-        self.totalCount = JSONValue.int(cursor["all_count"]) ?? 0
+        self.isLegacyPaging = pagination.isEmpty && !page.isEmpty
+
+        let pageNumber = JSONValue.int(page["num"]) ?? 1
+        let pageSize = JSONValue.int(page["size"]) ?? max(replies.count, 20)
+        let pageTotalCount = JSONValue.int(page["count"]) ?? 0
+        let cursorTotalCount = JSONValue.int(cursor["all_count"]) ?? 0
+        self.totalCount = max(cursorTotalCount, pageTotalCount)
+
+        if isLegacyPaging {
+            self.isEnd = totalCount > 0 ? pageNumber * pageSize >= totalCount : replies.count < pageSize
+            self.nextPageNumber = pageNumber + 1
+        } else {
+            self.isEnd = JSONValue.bool(cursor["is_end"]) ?? false
+            self.nextPageNumber = 2
+        }
+
         self.inputPlaceholder = JSONValue.string(control["root_input_text"])
+            ?? JSONValue.string(JSONValue.dictionary(json["config"])?["input_text"])
         self.childInputPlaceholder = JSONValue.string(control["child_input_text"])
+            ?? self.inputPlaceholder
     }
 }
 

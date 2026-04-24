@@ -333,7 +333,6 @@ struct NativePlayerView: View {
         ZStack(alignment: .bottomLeading) {
             AsyncPosterImage(urlString: viewModel.video.coverURL, width: nil, height: 260)
                 .frame(maxWidth: .infinity)
-                .drawingGroup(opaque: true)
 
             LinearGradient(
                 colors: [.clear, .black.opacity(0.76)],

@@ -131,7 +131,7 @@ struct DynamicView: View {
                     .padding(.vertical, 12)
                     .background(
                         Capsule()
-                            .fill(viewModel.selectedFeed == feed ? Color("AccentColor") : Color(.systemBackground).opacity(0.72))
+                            .fill(viewModel.selectedFeed == feed ? Color("AccentColor") : Color(.secondarySystemBackground).opacity(0.96))
                     )
                     .overlay(
                         Capsule()

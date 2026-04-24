@@ -58,6 +58,7 @@ enum BiliEndpoint {
     static let coinVideo = "/x/web-interface/coin/add"
     static let relatedVideos = "/x/web-interface/archive/related"
     static let replyMain = "/x/v2/reply/main"
+    static let replyList = "/x/v2/reply"
     static let replyLike = "/x/v2/reply/action"
     static let replyReplyList = "/x/v2/reply/reply"
     static let replyAdd = "/x/v2/reply/add"

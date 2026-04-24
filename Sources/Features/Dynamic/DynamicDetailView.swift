@@ -45,11 +45,14 @@ struct DynamicDetailView: View {
                         }
                     }
 
-                    if let commentOID = item.commentOID {
+                    if let commentOID = item.commentOID,
+                       commentOID > 0,
+                       let commentType = item.commentType,
+                       commentType > 0 {
                         VideoCommentsSection(
                             apiClient: viewModel.apiClient,
                             oid: commentOID,
-                            replyType: item.commentType ?? 11
+                            replyType: commentType
                         )
                         .padding(18)
                         .biliListCardStyle()
@@ -236,10 +239,10 @@ struct DynamicDetailView: View {
             .foregroundStyle(.secondary)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(.white.opacity(0.7), in: Capsule())
+            .background(Color(.secondarySystemBackground).opacity(0.92), in: Capsule())
             .overlay(
                 Capsule()
-                    .stroke(.white.opacity(0.74), lineWidth: 1)
+                    .stroke(Color.black.opacity(0.05), lineWidth: 0.8)
             )
     }
 

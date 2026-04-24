@@ -173,7 +173,7 @@ struct VideoCommentsSection: View {
                 )
             }
 
-            BiliGlassGroup(spacing: 10) {
+            ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
                     ForEach(VideoCommentsViewModel.SortMode.allCases) { mode in
                         sortChip(for: mode)
@@ -236,7 +236,7 @@ struct VideoCommentsSection: View {
             .padding(.vertical, 11)
             .background(
                 Capsule()
-                    .fill(viewModel.sortMode == mode ? Color("AccentColor") : Color(.systemBackground).opacity(0.72))
+                    .fill(viewModel.sortMode == mode ? Color("AccentColor") : Color(.secondarySystemBackground).opacity(0.96))
             )
             .overlay(
                 Capsule()

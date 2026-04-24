@@ -15,16 +15,14 @@ struct RootTabView: View {
     var body: some View {
         TabView(selection: $selection) {
             HomeView(apiClient: appEnvironment.apiClient)
-            .tabItem {
-                Image(systemName: "house")
-                Text(L10n.tabHome)
-            }
+                .tabItem {
+                    Label(L10n.tabHome, systemImage: selection == .home ? "house.fill" : "house")
+                }
             .tag(RootTab.home)
 
             SearchView(apiClient: appEnvironment.apiClient)
                 .tabItem {
-                    Image(systemName: "magnifyingglass")
-                    Text(L10n.tabSearch)
+                    Label(L10n.tabSearch, systemImage: selection == .search ? "magnifyingglass.circle.fill" : "magnifyingglass")
                 }
                 .tag(RootTab.search)
 
@@ -34,8 +32,7 @@ struct RootTabView: View {
                 onTapProfile: { selection = .profile }
             )
             .tabItem {
-                Image(systemName: "square.grid.2x2")
-                Text(L10n.tabDynamic)
+                Label(L10n.tabDynamic, systemImage: selection == .dynamic ? "square.grid.2x2.fill" : "square.grid.2x2")
             }
             .tag(RootTab.dynamic)
 
@@ -43,8 +40,7 @@ struct RootTabView: View {
                 HistoryView(apiClient: appEnvironment.apiClient)
             }
                 .tabItem {
-                    Image(systemName: "clock")
-                    Text(L10n.historyTitle)
+                    Label(L10n.historyTitle, systemImage: selection == .history ? "clock.fill" : "clock")
                 }
             .tag(RootTab.history)
 
@@ -53,11 +49,13 @@ struct RootTabView: View {
                 sessionStore: appEnvironment.sessionStore
             )
             .tabItem {
-                Image(systemName: "person")
-                Text(L10n.tabProfile)
+                Label(L10n.tabProfile, systemImage: selection == .profile ? "person.fill" : "person")
             }
             .tag(RootTab.profile)
         }
         .tint(Color("AccentColor"))
+        .toolbarBackground(.visible, for: .tabBar)
+        .toolbarBackground(Color(.systemBackground).opacity(0.96), for: .tabBar)
+        .toolbarColorScheme(.light, for: .tabBar)
     }
 }

@@ -20,23 +20,21 @@ struct BiliBackground<Content: View>: View {
             )
             .ignoresSafeArea()
 
-            Circle()
-                .fill(Color("AccentColor").opacity(0.12))
-                .frame(width: 260, height: 260)
-                .blur(radius: 26)
-                .offset(x: -150, y: -250)
+            RadialGradient(
+                colors: [Color("AccentColor").opacity(0.12), .clear],
+                center: .topLeading,
+                startRadius: 12,
+                endRadius: 260
+            )
+            .ignoresSafeArea()
 
-            Circle()
-                .fill(Color.orange.opacity(0.08))
-                .frame(width: 240, height: 240)
-                .blur(radius: 22)
-                .offset(x: 160, y: -160)
-
-            RoundedRectangle(cornerRadius: 120, style: .continuous)
-                .fill(Color.white.opacity(0.18))
-                .frame(width: 360, height: 160)
-                .blur(radius: 18)
-                .offset(x: 100, y: 320)
+            RadialGradient(
+                colors: [Color.orange.opacity(0.08), .clear],
+                center: .topTrailing,
+                startRadius: 20,
+                endRadius: 240
+            )
+            .ignoresSafeArea()
 
             content
         }
@@ -130,26 +128,31 @@ struct BiliSymbolOrb: View {
     var lightweight = false
 
     var body: some View {
-        Image(systemName: systemImage)
+        let orb = Image(systemName: systemImage)
             .font(.system(size: size * 0.42, weight: .semibold))
             .foregroundStyle(tint)
             .frame(width: size, height: size)
             .background(
                 Circle()
-                    .fill(Color(.systemBackground).opacity(0.72))
+                    .fill(Color(.systemBackground).opacity(lightweight ? 0.96 : 0.78))
             )
             .overlay(
                 Circle()
                     .stroke(Color.black.opacity(0.05), lineWidth: 0.8)
             )
-            .shadow(color: Color.black.opacity(lightweight ? 0.025 : 0.05), radius: lightweight ? 4 : 10, x: 0, y: lightweight ? 2 : 4)
-            .modifier(
+            .shadow(color: Color.black.opacity(lightweight ? 0.02 : 0.05), radius: lightweight ? 3 : 10, x: 0, y: lightweight ? 1 : 4)
+
+        if lightweight {
+            orb
+        } else {
+            orb.modifier(
                 BiliGlassSurfaceModifier(
                     cornerRadius: size / 2,
                     tint: tint,
-                    interactive: !lightweight
+                    interactive: true
                 )
             )
+        }
     }
 }
 
@@ -329,13 +332,6 @@ private struct BiliActionButtonModifier: ViewModifier {
                     .stroke(borderColor.opacity(isEnabled ? 1 : 0.55), lineWidth: 1)
             )
             .opacity(isEnabled ? 1 : 0.82)
-            .modifier(
-                BiliGlassSurfaceModifier(
-                    cornerRadius: 16,
-                    tint: variant == .primary ? Color("AccentColor") : .white,
-                    interactive: true
-                )
-            )
     }
 
     private var foregroundColor: Color {
@@ -352,7 +348,7 @@ private struct BiliActionButtonModifier: ViewModifier {
         case .primary:
             return Color("AccentColor")
         case .secondary:
-            return Color(.secondarySystemBackground)
+            return Color("AccentColor").opacity(0.1)
         }
     }
 

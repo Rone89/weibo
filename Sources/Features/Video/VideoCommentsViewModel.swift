@@ -50,6 +50,8 @@ final class VideoCommentsViewModel: ObservableObject {
     let replyTypeValue: Int
     private var currentOID: Int?
     private var nextOffset = ""
+    private var nextLegacyPage = 1
+    private var isUsingLegacyPaging = false
     private var hasLoaded = false
 
     init(apiClient: BiliAPIClient, replyType: Int = 1) {
@@ -64,6 +66,8 @@ final class VideoCommentsViewModel: ObservableObject {
             currentOID = oid
             hasLoaded = false
             nextOffset = ""
+            nextLegacyPage = 1
+            isUsingLegacyPaging = false
             topReplies = []
             replies = []
         }
@@ -82,11 +86,15 @@ final class VideoCommentsViewModel: ObservableObject {
         defer { isLoading = false }
 
         do {
-            let page = try await fetchPage(oid: currentOID, offset: "", sortMode: sortMode)
+            let page = try await fetchPage(oid: currentOID, offset: "", pageNumber: 1, sortMode: sortMode)
             topReplies = page.topReplies
             replies = page.replies
             nextOffset = page.nextOffset
-            canLoadMore = !page.isEnd && !page.nextOffset.isEmpty
+            nextLegacyPage = page.nextPageNumber
+            isUsingLegacyPaging = page.isLegacyPaging
+            canLoadMore = page.isLegacyPaging
+                ? !page.isEnd
+                : (!page.isEnd && !page.nextOffset.isEmpty)
             totalCount = page.totalCount
             inputPlaceholder = page.inputPlaceholder
             childInputPlaceholder = page.childInputPlaceholder
@@ -104,17 +112,26 @@ final class VideoCommentsViewModel: ObservableObject {
         guard !isLoading else { return }
         guard !isLoadingMore else { return }
         guard canLoadMore else { return }
-        guard !nextOffset.isEmpty else { return }
+        if !isUsingLegacyPaging, nextOffset.isEmpty { return }
 
         isLoadingMore = true
         defer { isLoadingMore = false }
 
         do {
-            let page = try await fetchPage(oid: currentOID, offset: nextOffset, sortMode: sortMode)
+            let page = try await fetchPage(
+                oid: currentOID,
+                offset: isUsingLegacyPaging ? "" : nextOffset,
+                pageNumber: nextLegacyPage,
+                sortMode: sortMode
+            )
             let existingIDs = Set(replies.map(\.id))
             replies.append(contentsOf: page.replies.filter { !existingIDs.contains($0.id) })
             nextOffset = page.nextOffset
-            canLoadMore = !page.isEnd && !page.nextOffset.isEmpty
+            nextLegacyPage = page.nextPageNumber
+            isUsingLegacyPaging = page.isLegacyPaging
+            canLoadMore = page.isLegacyPaging
+                ? !page.isEnd
+                : (!page.isEnd && !page.nextOffset.isEmpty)
             totalCount = max(totalCount, page.totalCount)
         } catch {
             errorMessage = error.localizedDescription
@@ -126,6 +143,8 @@ final class VideoCommentsViewModel: ObservableObject {
         self.sortMode = sortMode
         hasLoaded = false
         nextOffset = ""
+        nextLegacyPage = 1
+        isUsingLegacyPaging = false
         await reload()
     }
 
@@ -198,18 +217,37 @@ final class VideoCommentsViewModel: ObservableObject {
         }
     }
 
-    private func fetchPage(oid: Int, offset: String, sortMode: SortMode) async throws -> VideoCommentPage {
+    private func fetchPage(
+        oid: Int,
+        offset: String,
+        pageNumber: Int,
+        sortMode: SortMode
+    ) async throws -> VideoCommentPage {
         let paginationString = #"{"offset":"\#(offset)"}"#
-        let data = try await apiClient.requestEnvelopeData(
-            path: BiliEndpoint.replyMain,
-            query: [
-                "oid": "\(oid)",
-                "type": "\(replyTypeValue)",
-                "mode": sortMode.apiMode,
-                "pagination_str": paginationString
-            ]
-        )
-        return VideoCommentPage(json: data)
+        do {
+            let data = try await apiClient.requestEnvelopeData(
+                path: BiliEndpoint.replyMain,
+                query: [
+                    "oid": "\(oid)",
+                    "type": "\(replyTypeValue)",
+                    "mode": sortMode.apiMode,
+                    "pagination_str": paginationString
+                ]
+            )
+            return VideoCommentPage(json: data)
+        } catch {
+            let legacyData = try await apiClient.requestEnvelopeData(
+                path: BiliEndpoint.replyList,
+                query: [
+                    "oid": "\(oid)",
+                    "type": "\(replyTypeValue)",
+                    "sort": sortMode == .hottest ? "1" : "2",
+                    "pn": "\(pageNumber)",
+                    "ps": "20"
+                ]
+            )
+            return VideoCommentPage(json: legacyData)
+        }
     }
 
     private func updateLikeState(in comments: [VideoComment], targetID: String, isLiked: Bool) -> [VideoComment] {

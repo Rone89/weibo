@@ -36,6 +36,7 @@ final class NativePlayerViewModel: ObservableObject {
     private var lastRemoteHeartbeatBucket = -1
     private var didReportHistoryEntry = false
     private let defaults: UserDefaults
+    private let fallbackQualities = [80, 64, 32, 16]
 
     private enum PreferenceKeys {
         static let playbackRate = "player.preference.playbackRate.v1"
@@ -256,26 +257,10 @@ final class NativePlayerViewModel: ObservableObject {
             throw APIError.invalidURL
         }
 
-        let directData = try await apiClient.requestEnvelopeData(
-            path: BiliEndpoint.videoPlayURL,
-            query: [
-                "avid": video.aid.map(String.init) ?? "",
-                "bvid": video.bvid,
-                "cid": "\(cid)",
-                "qn": "\(requestedQn)",
-                "fnval": "0",
-                "fnver": "0",
-                "fourk": "1",
-                "voice_balance": "1",
-                "gaia_source": "pre-load",
-                "isGaiaAvoided": "true",
-                "web_location": "1315873"
-            ].filter { !$0.value.isEmpty },
-            headers: [
-                "Referer": "\(BiliBaseURL.web)/",
-                "Origin": BiliBaseURL.web
-            ],
-            signedByWBI: true,
+        let directData = try await requestPlayableData(
+            cid: cid,
+            requestedQuality: requestedQn,
+            fnval: "0",
             includeCookies: includeCookies
         )
 
@@ -322,48 +307,17 @@ final class NativePlayerViewModel: ObservableObject {
         guard let webURL = URL(string: "https://www.bilibili.com/video/\(video.bvid)?p=\(selectedPage?.page ?? 1)") else {
             throw APIError.invalidURL
         }
-        let playbackHeaders = [
-            "Referer": "\(BiliBaseURL.web)/",
-            "Origin": BiliBaseURL.web
-        ]
-
-        async let dashDataTask = apiClient.requestEnvelopeData(
-            path: BiliEndpoint.videoPlayURL,
-            query: [
-                "avid": video.aid.map(String.init) ?? "",
-                "bvid": video.bvid,
-                "cid": "\(cid)",
-                "qn": "\(requestedQn)",
-                "fnval": "4048",
-                "fnver": "0",
-                "fourk": "1",
-                "voice_balance": "1",
-                "gaia_source": "pre-load",
-                "isGaiaAvoided": "true",
-                "web_location": "1315873"
-            ].filter { !$0.value.isEmpty },
-            headers: playbackHeaders,
-            signedByWBI: true,
+        async let dashDataTask = requestPlayableData(
+            cid: cid,
+            requestedQuality: requestedQn,
+            fnval: "4048",
             includeCookies: includeCookies
         )
 
-        async let directDataTask = apiClient.requestEnvelopeData(
-            path: BiliEndpoint.videoPlayURL,
-            query: [
-                "avid": video.aid.map(String.init) ?? "",
-                "bvid": video.bvid,
-                "cid": "\(cid)",
-                "qn": "\(requestedQn)",
-                "fnval": "0",
-                "fnver": "0",
-                "fourk": "1",
-                "voice_balance": "1",
-                "gaia_source": "pre-load",
-                "isGaiaAvoided": "true",
-                "web_location": "1315873"
-            ].filter { !$0.value.isEmpty },
-            headers: playbackHeaders,
-            signedByWBI: true,
+        async let directDataTask = requestPlayableData(
+            cid: cid,
+            requestedQuality: requestedQn,
+            fnval: "0",
             includeCookies: includeCookies
         )
 
@@ -836,6 +790,85 @@ final class NativePlayerViewModel: ObservableObject {
         let lhsCodecid = JSONValue.int(lhs["codecid"]) ?? 0
         let rhsCodecid = JSONValue.int(rhs["codecid"]) ?? 0
         return lhsCodecid > rhsCodecid
+    }
+
+    private func requestPlayableData(
+        cid: Int,
+        requestedQuality: Int,
+        fnval: String,
+        includeCookies: Bool
+    ) async throws -> [String: Any] {
+        let qualityCandidates = ([requestedQuality] + fallbackQualities).reduce(into: [Int]()) { result, qn in
+            if !result.contains(qn) {
+                result.append(qn)
+            }
+        }
+
+        var lastError: Error = APIError.invalidResponse
+        for qn in qualityCandidates {
+            do {
+                return try await apiClient.requestEnvelopeData(
+                    path: BiliEndpoint.videoPlayURL,
+                    query: playURLQuery(cid: cid, quality: qn, fnval: fnval, tryLook: shouldUseTrialPlayback),
+                    headers: playbackRequestHeaders,
+                    signedByWBI: true,
+                    includeCookies: includeCookies
+                )
+            } catch {
+                lastError = error
+            }
+        }
+
+        if includeCookies {
+            for qn in qualityCandidates {
+                do {
+                    return try await apiClient.requestEnvelopeData(
+                        path: BiliEndpoint.videoPlayURL,
+                        query: playURLQuery(cid: cid, quality: qn, fnval: fnval, tryLook: true),
+                        headers: playbackRequestHeaders,
+                        signedByWBI: true,
+                        includeCookies: false
+                    )
+                } catch {
+                    lastError = error
+                }
+            }
+        }
+
+        throw lastError
+    }
+
+    private var shouldUseTrialPlayback: Bool {
+        apiClient.preferencesStore.isIncognitoPlaybackEnabled || !apiClient.sessionStore.hasCookie
+    }
+
+    private var playbackRequestHeaders: [String: String] {
+        [
+            "Referer": "\(BiliBaseURL.web)/",
+            "Origin": BiliBaseURL.web
+        ]
+    }
+
+    private func playURLQuery(cid: Int, quality: Int, fnval: String, tryLook: Bool) -> [String: String] {
+        var query = [
+            "avid": video.aid.map(String.init) ?? "",
+            "bvid": video.bvid,
+            "cid": "\(cid)",
+            "qn": "\(quality)",
+            "fnval": fnval,
+            "fnver": "0",
+            "fourk": "1",
+            "voice_balance": "1",
+            "gaia_source": "pre-load",
+            "isGaiaAvoided": "true",
+            "web_location": "1315873"
+        ].filter { !$0.value.isEmpty }
+
+        if tryLook {
+            query["try_look"] = "1"
+        }
+
+        return query
     }
 
     private func codecPriority(from json: [String: Any]) -> Int {

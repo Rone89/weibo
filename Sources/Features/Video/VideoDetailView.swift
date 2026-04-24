@@ -8,7 +8,7 @@ struct VideoDetailView: View {
     @State private var isDescriptionExpanded = false
     @State private var isPresentingFavoritePicker = false
     @State private var playerPanelMinY: CGFloat = 0
-    @State private var commentsSectionMinY: CGFloat = .greatestFiniteMagnitude
+    @State private var hasReachedComments = false
 
     init(viewModel: VideoDetailViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -198,7 +198,7 @@ struct VideoDetailView: View {
                     .biliListCardStyle()
             }
         }
-        .background(positionTracker { playerPanelMinY = $0 })
+        .background(playerPositionTracker)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(shouldDockPlayer ? Color(.systemBackground).opacity(0.96) : .clear)
@@ -221,7 +221,6 @@ struct VideoDetailView: View {
                 height: 220
             )
             .frame(maxWidth: .infinity)
-            .drawingGroup(opaque: true)
 
             LinearGradient(
                 colors: [.clear, .black.opacity(0.65)],
@@ -470,7 +469,7 @@ struct VideoDetailView: View {
     }
 
     private var shouldDockPlayer: Bool {
-        playerPanelMinY < -12 && commentsSectionMinY < 280
+        playerPanelMinY < -12 && hasReachedComments
     }
 
     private var dockedPlayerOffset: CGFloat {
@@ -523,7 +522,7 @@ struct VideoDetailView: View {
         )
         .padding(18)
         .biliListCardStyle()
-        .background(positionTracker { commentsSectionMinY = $0 })
+        .background(commentsThresholdTracker)
     }
 
     private var descriptionText: String {
@@ -638,16 +637,36 @@ struct VideoDetailView: View {
         .biliListCardStyle()
     }
 
-    private func positionTracker(_ onChange: @escaping (CGFloat) -> Void) -> some View {
+    private var playerPositionTracker: some View {
         GeometryReader { proxy in
             let minY = proxy.frame(in: .named("videoDetailScroll")).minY
             Color.clear
                 .onAppear {
-                    onChange(minY)
+                    updatePlayerPanelPosition(minY)
                 }
                 .onChange(of: minY) { newValue in
-                    onChange(newValue)
+                    updatePlayerPanelPosition(newValue)
                 }
+        }
+    }
+
+    private var commentsThresholdTracker: some View {
+        GeometryReader { proxy in
+            let hasReachedThreshold = proxy.frame(in: .named("videoDetailScroll")).minY < 280
+            Color.clear
+                .onAppear {
+                    hasReachedComments = hasReachedThreshold
+                }
+                .onChange(of: hasReachedThreshold) { newValue in
+                    hasReachedComments = newValue
+                }
+        }
+    }
+
+    private func updatePlayerPanelPosition(_ minY: CGFloat) {
+        let snapped = (minY / 12).rounded() * 12
+        if abs(playerPanelMinY - snapped) >= 12 || abs(snapped) < 1 {
+            playerPanelMinY = snapped
         }
     }
 }

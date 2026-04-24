@@ -253,9 +253,11 @@ final class BiliAPIClient {
         headers.forEach { request.setValue($1, forHTTPHeaderField: $0) }
 
         let (data, response) = try await session.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse,
-              200..<300 ~= httpResponse.statusCode else {
+        guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
+        }
+        guard 200..<300 ~= httpResponse.statusCode else {
+            throw responseError(from: data, statusCode: httpResponse.statusCode)
         }
 
         do {
@@ -293,6 +295,27 @@ final class BiliAPIClient {
             .map { "\($0.key.percentEncodedForForm)=\($0.value.percentEncodedForForm)" }
             .joined(separator: "&")
         return body.data(using: .utf8)
+    }
+
+    private func responseError(from data: Data, statusCode: Int) -> APIError {
+        if let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            let code = JSONValue.int(root["code"]) ?? statusCode
+            if let message = JSONValue.string(root["message"]), !message.isEmpty {
+                return .server(message)
+            }
+            if let message = JSONValue.string(root["msg"]), !message.isEmpty {
+                return .server(message)
+            }
+            return .server(L10n.requestFailed(code: code))
+        }
+
+        if let text = String(data: data, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+           !text.isEmpty {
+            return .server(String(text.prefix(120)))
+        }
+
+        return .server(L10n.requestFailed(code: statusCode))
     }
 }
 
