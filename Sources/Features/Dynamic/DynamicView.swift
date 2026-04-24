@@ -512,7 +512,7 @@ private struct DynamicFullscreenImage: View {
 
     var body: some View {
         GeometryReader { proxy in
-            AsyncImage(url: urlString?.normalizedBiliURLString.flatMap(URL.init(string:))) { phase in
+            AsyncImage(url: normalizedURL) { phase in
                 switch phase {
                 case .success(let image):
                     image
@@ -539,6 +539,11 @@ private struct DynamicFullscreenImage: View {
                 }
             }
         }
+    }
+
+    private var normalizedURL: URL? {
+        guard let urlString, !urlString.isEmpty else { return nil }
+        return URL(string: urlString.normalizedBiliURLString)
     }
 }
 
