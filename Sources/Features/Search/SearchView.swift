@@ -1,8 +1,10 @@
 import SwiftUI
+import UIKit
 
 struct SearchView: View {
     @StateObject private var viewModel: SearchViewModel
     private let apiClient: BiliAPIClient
+    @FocusState private var isSearchFieldFocused: Bool
 
     init(apiClient: BiliAPIClient) {
         self.apiClient = apiClient
@@ -15,7 +17,7 @@ struct SearchView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     headerPanel
 
-                    if !viewModel.suggestions.isEmpty && !viewModel.query.isEmpty {
+                    if !viewModel.suggestions.isEmpty && !viewModel.query.isEmpty && isSearchFieldFocused {
                         suggestionPanel
                     }
 
@@ -36,14 +38,24 @@ struct SearchView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 16)
+                .padding(.top, 24)
                 .padding(.bottom, 28)
+                .contentShape(Rectangle())
             }
             .background {
                 BiliBackground {
                     Color.clear
                 }
             }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                bottomDock
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .simultaneousGesture(
+                TapGesture().onEnded {
+                    dismissKeyboard()
+                }
+            )
             .toolbar(.hidden, for: .navigationBar)
             .task {
                 await viewModel.loadLandingIfNeeded()
@@ -72,7 +84,7 @@ struct SearchView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(L10n.tabSearch)
                         .font(.system(size: 32, weight: .black, design: .rounded))
-                    Text(L10n.searchDiscoverySubtitle)
+                    Text(L10n.searchDiscoverySubtitle2)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -80,42 +92,7 @@ struct SearchView: View {
 
                 Spacer(minLength: 12)
 
-                BiliSymbolOrb(systemImage: "sparkle.magnifyingglass", tint: .blue, size: 42, lightweight: true)
-            }
-
-            HStack(spacing: 10) {
-                HStack(spacing: 10) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(Color("AccentColor"))
-
-                    TextField(viewModel.placeholder, text: $viewModel.query)
-                        .textInputAutocapitalization(.never)
-                        .disableAutocorrection(true)
-                        .submitLabel(.search)
-                        .onSubmit {
-                            Task { await viewModel.submitSearch() }
-                        }
-
-                    if !viewModel.query.isEmpty {
-                        Button {
-                            viewModel.query = ""
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
-                .biliPanelCardStyle(tint: Color("AccentColor").opacity(0.34), interactive: true)
-
-                Button(L10n.searchAction) {
-                    Task { await viewModel.submitSearch() }
-                }
-                .buttonStyle(.plain)
-                .biliPrimaryActionButton(fillWidth: false)
-                .disabled(viewModel.isSearching)
+                compactHeaderButton(systemImage: "sparkles", tint: .blue)
             }
 
             HStack(spacing: 10) {
@@ -131,17 +108,82 @@ struct SearchView: View {
         .biliPanelCardStyle(tint: .blue.opacity(0.3), interactive: true)
     }
 
+    private var bottomDock: some View {
+        VStack(spacing: 12) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(SearchScope.allCases) { scope in
+                        bottomScopeChip(scope)
+                    }
+                }
+                .padding(.horizontal, 6)
+            }
+
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(Color("AccentColor"))
+
+                TextField(viewModel.placeholder, text: $viewModel.query)
+                    .focused($isSearchFieldFocused)
+                    .textInputAutocapitalization(.never)
+                    .disableAutocorrection(true)
+                    .submitLabel(.search)
+                    .onSubmit {
+                        dismissKeyboard()
+                        Task { await viewModel.submitSearch() }
+                    }
+
+                if !viewModel.query.isEmpty {
+                    Button {
+                        viewModel.query = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Button {
+                    dismissKeyboard()
+                    Task { await viewModel.submitSearch() }
+                } label: {
+                    Image(systemName: "arrow.up.left.circle.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(Color("AccentColor"))
+                }
+                .buttonStyle(.plain)
+                .disabled(viewModel.isSearching)
+                .opacity(viewModel.isSearching ? 0.55 : 1)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(bottomSearchFieldBackground)
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
+        .padding(.bottom, 12)
+        .background(
+            LinearGradient(
+                colors: [Color.clear, Color(.systemBackground).opacity(0.75)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+        )
+    }
+
     private var suggestionPanel: some View {
         VStack(alignment: .leading, spacing: 14) {
             BiliSectionHeader(title: L10n.searchSuggestions, subtitle: L10n.suggestionSubtitle(viewModel.suggestions.count))
 
-            VStack(spacing: 10) {
+            LazyVStack(spacing: 10) {
                 ForEach(viewModel.suggestions) { item in
                     Button {
+                        isSearchFieldFocused = false
                         viewModel.useKeyword(item.term)
                     } label: {
                         HStack(spacing: 12) {
-                            BiliSymbolOrb(systemImage: "sparkle.magnifyingglass", tint: Color("AccentColor"), size: 38, lightweight: true)
+                            compactLeadingIcon(systemImage: "magnifyingglass.circle.fill", tint: Color("AccentColor"))
 
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(item.term)
@@ -169,8 +211,6 @@ struct SearchView: View {
 
     private var resultSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            scopeSelector
-
             if viewModel.selectedScope == .video {
                 videoFilterSection
             }
@@ -209,40 +249,6 @@ struct SearchView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                 }
             }
-        }
-    }
-
-    private var scopeSelector: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                ForEach(SearchScope.allCases) { scope in
-                    Button {
-                        Task { await viewModel.selectScope(scope) }
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: scope.systemImage)
-                            Text(scope.title)
-                            if let count = viewModel.scopeCounts[scope] {
-                                Text(count > 99 ? "99+" : "\(count)")
-                            }
-                        }
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(viewModel.selectedScope == scope ? .white : .primary)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 11)
-                        .background(
-                            Capsule()
-                                .fill(viewModel.selectedScope == scope ? Color("AccentColor") : Color(.systemBackground).opacity(0.72))
-                        )
-                        .overlay(
-                            Capsule()
-                                .stroke(Color.black.opacity(viewModel.selectedScope == scope ? 0 : 0.05), lineWidth: 0.8)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.vertical, 2)
         }
     }
 
@@ -416,19 +422,16 @@ struct SearchView: View {
         VStack(alignment: .leading, spacing: 14) {
             BiliSectionHeader(title: L10n.searchDiscoveryTitle, subtitle: L10n.searchDiscoverySubtitle2)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 14) {
-                    ForEach(discoveryKeywords) { keyword in
-                        Button {
-                            viewModel.useKeyword(keyword.keyword)
-                        } label: {
-                            SearchDiscoveryCard(keyword: keyword)
-                                .frame(width: 200)
-                        }
-                        .buttonStyle(.plain)
+            LazyVGrid(columns: discoveryColumns, spacing: 14) {
+                ForEach(Array(discoveryKeywords.enumerated()), id: \.element.id) { index, keyword in
+                    Button {
+                        dismissKeyboard()
+                        viewModel.useKeyword(keyword.keyword)
+                    } label: {
+                        SearchDiscoveryCard(keyword: keyword, styleIndex: index)
                     }
+                    .buttonStyle(.plain)
                 }
-                .padding(.vertical, 2)
             }
         }
     }
@@ -502,19 +505,112 @@ struct SearchView: View {
         Button(action: action) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(isSelected ? .white : .primary)
+                .foregroundColor(.primary)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
                 .background(
                     Capsule()
-                        .fill(isSelected ? Color("AccentColor") : Color(.systemBackground).opacity(0.72))
+                        .fill(isSelected ? Color("AccentColor").opacity(0.16) : Color(.systemBackground).opacity(0.72))
                 )
                 .overlay(
                     Capsule()
-                        .stroke(Color.black.opacity(isSelected ? 0 : 0.05), lineWidth: 0.8)
+                        .stroke((isSelected ? Color("AccentColor") : Color.black).opacity(isSelected ? 0.22 : 0.05), lineWidth: 0.8)
                 )
         }
         .buttonStyle(.plain)
+    }
+
+    private var discoveryColumns: [GridItem] {
+        [
+            GridItem(.flexible(), spacing: 14),
+            GridItem(.flexible(), spacing: 14)
+        ]
+    }
+
+    private func compactHeaderButton(systemImage: String, tint: Color) -> some View {
+        Image(systemName: systemImage)
+            .symbolRenderingMode(.monochrome)
+            .font(.system(size: 20, weight: .semibold))
+            .foregroundColor(tint)
+            .frame(width: 44, height: 44)
+            .background(
+                Circle()
+                    .fill(Color(.systemBackground).opacity(0.96))
+            )
+            .overlay(
+                Circle()
+                    .stroke(Color.black.opacity(0.05), lineWidth: 0.8)
+            )
+            .shadow(color: .black.opacity(0.02), radius: 3, x: 0, y: 1)
+    }
+
+    private func compactLeadingIcon(systemImage: String, tint: Color) -> some View {
+        Image(systemName: systemImage)
+            .symbolRenderingMode(.monochrome)
+            .font(.system(size: 18, weight: .semibold))
+            .foregroundColor(tint)
+            .frame(width: 40, height: 40)
+            .background(
+                Circle()
+                    .fill(Color(.secondarySystemBackground).opacity(0.96))
+            )
+            .overlay(
+                Circle()
+                    .stroke(Color.black.opacity(0.05), lineWidth: 0.8)
+            )
+    }
+
+    private func bottomScopeChip(_ scope: SearchScope) -> some View {
+        Button {
+            Task { await viewModel.selectScope(scope) }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: scope.systemImage)
+                Text(scope.title)
+                if let count = viewModel.scopeCounts[scope] {
+                    Text(count > 99 ? "99+" : "\(count)")
+                }
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundColor(viewModel.selectedScope == scope ? .primary : .secondary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                Capsule()
+                    .fill(viewModel.selectedScope == scope ? Color.white.opacity(0.92) : Color(.secondarySystemBackground).opacity(0.72))
+            )
+            .overlay(
+                Capsule()
+                    .stroke((viewModel.selectedScope == scope ? Color("AccentColor") : Color.black).opacity(viewModel.selectedScope == scope ? 0.18 : 0.04), lineWidth: 0.8)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var bottomSearchFieldBackground: some View {
+        if #available(iOS 26.0, *) {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .fill(Color(.systemBackground).opacity(0.001))
+                .glassEffect(.regular.tint(Color("AccentColor").opacity(0.05)).interactive(), in: .rect(cornerRadius: 26))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 26, style: .continuous)
+                        .stroke(Color.black.opacity(0.05), lineWidth: 0.8)
+                )
+        } else {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .fill(Color(.systemBackground).opacity(0.94))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 26, style: .continuous)
+                        .stroke(Color.black.opacity(0.05), lineWidth: 0.8)
+                )
+                .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 4)
+        }
+    }
+
+    private func dismissKeyboard() {
+        isSearchFieldFocused = false
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
 }
@@ -554,32 +650,67 @@ private struct SearchBestMatchCard: View {
 
 private struct SearchDiscoveryCard: View {
     let keyword: TrendingKeyword
+    let styleIndex: Int
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                BiliSymbolOrb(systemImage: "sparkles", tint: .blue, size: 38, lightweight: true)
-                Spacer(minLength: 8)
+        ZStack(alignment: .bottomLeading) {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .fill(tileGradient)
+
+            LinearGradient(
+                colors: [.clear, .black.opacity(0.26)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 8) {
                 if let reason = keyword.reason, !reason.isEmpty {
                     Text(reason)
                         .font(.caption2.weight(.bold))
-                        .foregroundStyle(Color("AccentColor"))
+                        .foregroundStyle(.white.opacity(0.88))
                         .lineLimit(1)
                 }
+
+                Text(keyword.keyword)
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-
-            Text(keyword.keyword)
-                .font(.headline.weight(.bold))
-                .foregroundStyle(.primary)
-                .lineLimit(2)
-
-            Text(keyword.reason ?? L10n.searchHeroSubtitle)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
+            .padding(16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
         }
-        .padding(16)
-        .biliListCardStyle(tint: .blue, interactive: true)
+        .frame(maxWidth: .infinity, minHeight: 132, maxHeight: 132)
+        .biliHeroCardStyle(cornerRadius: 26, tint: tileAccentColor, shadowOpacity: 0.04)
+    }
+
+    private var tileAccentColor: Color {
+        switch styleIndex % 6 {
+        case 0: return .orange
+        case 1: return .pink
+        case 2: return .purple
+        case 3: return .blue
+        case 4: return .green
+        default: return .red
+        }
+    }
+
+    private var tileGradient: LinearGradient {
+        switch styleIndex % 6 {
+        case 0:
+            return LinearGradient(colors: [Color(red: 0.95, green: 0.68, blue: 0.18), Color(red: 0.82, green: 0.45, blue: 0.15)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case 1:
+            return LinearGradient(colors: [Color(red: 0.95, green: 0.41, blue: 0.62), Color(red: 0.77, green: 0.29, blue: 0.55)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case 2:
+            return LinearGradient(colors: [Color(red: 0.57, green: 0.50, blue: 0.92), Color(red: 0.36, green: 0.32, blue: 0.78)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case 3:
+            return LinearGradient(colors: [Color(red: 0.39, green: 0.66, blue: 0.95), Color(red: 0.24, green: 0.45, blue: 0.90)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case 4:
+            return LinearGradient(colors: [Color(red: 0.42, green: 0.78, blue: 0.55), Color(red: 0.24, green: 0.62, blue: 0.38)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        default:
+            return LinearGradient(colors: [Color(red: 0.97, green: 0.34, blue: 0.35), Color(red: 0.83, green: 0.20, blue: 0.28)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        }
     }
 }
 

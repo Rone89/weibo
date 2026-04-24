@@ -197,8 +197,9 @@ final class SearchViewModel: ObservableObject {
             if resetResults {
                 results = response.items
             } else {
+                let existingIDs = Set(results.map(\.id))
                 results.append(contentsOf: response.items.filter { incoming in
-                    !results.contains(where: { $0.id == incoming.id })
+                    !existingIDs.contains(incoming.id)
                 })
             }
 

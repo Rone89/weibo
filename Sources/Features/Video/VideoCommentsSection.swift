@@ -87,7 +87,7 @@ struct VideoCommentsSection: View {
                     pinnedSection
                 }
 
-                VStack(spacing: 12) {
+                LazyVStack(spacing: 12) {
                     ForEach(viewModel.replies) { comment in
                         VideoCommentCard(
                             comment: comment,
@@ -197,7 +197,7 @@ struct VideoCommentsSection: View {
             )
 
             if isPinnedExpanded {
-                VStack(spacing: 12) {
+                LazyVStack(spacing: 12) {
                     ForEach(viewModel.topReplies) { comment in
                         VideoCommentCard(
                             comment: comment,
@@ -306,7 +306,7 @@ private struct VideoCommentCard: View {
     @State private var isExpanded = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 12) {
                 AsyncPosterImage(urlString: comment.author.avatarURL, width: 42, height: 42)
                     .clipShape(Circle())
@@ -408,12 +408,12 @@ private struct VideoCommentCard: View {
                             .foregroundStyle(Color("AccentColor"))
                     }
                 }
-                .padding(12)
+                .padding(10)
                 .biliListCardStyle(cornerRadius: 20, tint: .blue)
             }
         }
-        .padding(16)
-        .biliListCardStyle(cornerRadius: 24, tint: isPinned ? .pink : Color("AccentColor"))
+        .padding(14)
+        .biliListCardStyle(cornerRadius: 22, tint: isPinned ? .pink : Color("AccentColor"))
         .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .onTapGesture {
             guard showsDetailAction else { return }
@@ -565,7 +565,7 @@ private struct VideoCommentRepliesSheet: View {
                             }
                         )
                     } else {
-                        VStack(spacing: 12) {
+                        LazyVStack(spacing: 12) {
                             ForEach(viewModel.replies) { reply in
                                 VideoCommentCard(
                                     comment: reply,
