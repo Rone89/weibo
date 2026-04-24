@@ -52,6 +52,10 @@ final class VideoDetailViewModel: ObservableObject {
         detail?.likeCount ?? seedVideo.likeCount ?? 0
     }
 
+    var displayedReplyCount: Int {
+        detail?.replyCount ?? 0
+    }
+
     var displayedFavoriteCount: Int {
         detail?.favoriteCount ?? 0
     }

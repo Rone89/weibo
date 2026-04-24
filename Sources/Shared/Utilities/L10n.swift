@@ -357,6 +357,7 @@ enum L10n {
     static let videoCommentsExpandText = "\u{5c55}\u{5f00}\u{5168}\u{6587}"
     static let videoCommentsCollapseText = "\u{6536}\u{8d77}\u{5168}\u{6587}"
     static let videoCommentsReplyAction = "\u{56de}\u{590d}"
+    static let videoCommentsDetailAction = "\u{67e5}\u{770b}\u{8be6}\u{60c5}"
     static let videoCommentsLikeUnavailable = "\u{5f53}\u{524d}\u{8bc4}\u{8bba}\u{7f3a}\u{5c11}\u{70b9}\u{8d5e}\u{53c2}\u{6570}\u{ff0c}\u{6682}\u{65f6}\u{4e0d}\u{80fd}\u{64cd}\u{4f5c}\u{3002}"
     static let videoCommentsSendAction = "\u{53d1}\u{9001}"
     static let videoCommentsComposerTitle = "\u{53d1}\u{8868}\u{8bc4}\u{8bba}"

@@ -100,9 +100,9 @@ struct VideoCommentsSection: View {
                                     placeholder: viewModel.childInputPlaceholder ?? L10n.videoCommentsReplyPlaceholder
                                 )
                             },
-                            onOpenThread: comment.replyCount > 0 ? {
+                            onOpenThread: {
                                 threadTarget = comment
-                            } : nil
+                            }
                         )
                         .onAppear {
                             triggerLoadMoreIfNeeded(for: comment)
@@ -211,9 +211,9 @@ struct VideoCommentsSection: View {
                                     placeholder: viewModel.childInputPlaceholder ?? L10n.videoCommentsReplyPlaceholder
                                 )
                             },
-                            onOpenThread: comment.replyCount > 0 ? {
+                            onOpenThread: {
                                 threadTarget = comment
-                            } : nil
+                            }
                         )
                     }
                 }
@@ -299,9 +299,10 @@ private struct VideoCommentCard: View {
     let comment: VideoComment
     var isPinned = false
     var showsPreviewReplies = true
+    var showsDetailAction = true
     let onLike: () -> Void
     let onReply: () -> Void
-    let onOpenThread: (() -> Void)?
+    let onOpenThread: () -> Void
     @State private var isExpanded = false
 
     var body: some View {
@@ -376,21 +377,23 @@ private struct VideoCommentCard: View {
                 Spacer(minLength: 0)
             }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    Button(L10n.videoCommentsReplyAction, action: onReply)
-                        .buttonStyle(.plain)
-                        .biliSecondaryActionButton(fillWidth: false)
+            HStack(spacing: 10) {
+                Button(L10n.videoCommentsReplyAction, action: onReply)
+                    .buttonStyle(.plain)
+                    .biliSecondaryActionButton(fillWidth: false)
 
-                    if let onOpenThread {
-                        Button(
-                            comment.replySummaryLabel ?? L10n.videoCommentsOpenThread(comment.replyCount),
-                            action: onOpenThread
-                        )
+                if showsDetailAction {
+                    Button(L10n.videoCommentsDetailAction, action: onOpenThread)
                         .buttonStyle(.plain)
                         .biliPrimaryActionButton(fillWidth: false)
-                    }
                 }
+            }
+
+            if showsDetailAction && comment.replyCount > 0 {
+                Text(comment.replySummaryLabel ?? L10n.videoCommentsOpenThread(comment.replyCount))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color("AccentColor"))
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             if showsPreviewReplies && !comment.previewReplies.isEmpty {
@@ -411,6 +414,11 @@ private struct VideoCommentCard: View {
         }
         .padding(16)
         .biliListCardStyle(cornerRadius: 24, tint: isPinned ? .pink : Color("AccentColor"))
+        .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .onTapGesture {
+            guard showsDetailAction else { return }
+            onOpenThread()
+        }
     }
 
     private var needsExpansion: Bool {
@@ -495,6 +503,7 @@ private struct VideoCommentRepliesSheet: View {
                             comment: rootComment,
                             isPinned: true,
                             showsPreviewReplies: false,
+                            showsDetailAction: false,
                             onLike: {
                                 Task { await viewModel.toggleLike(for: rootComment) }
                             },
@@ -504,7 +513,7 @@ private struct VideoCommentRepliesSheet: View {
                                     placeholder: viewModel.inputPlaceholder ?? L10n.videoCommentsReplyPlaceholder
                                 )
                             },
-                            onOpenThread: nil
+                            onOpenThread: {}
                         )
                     }
 
@@ -561,6 +570,7 @@ private struct VideoCommentRepliesSheet: View {
                                 VideoCommentCard(
                                     comment: reply,
                                     showsPreviewReplies: false,
+                                    showsDetailAction: false,
                                     onLike: {
                                         Task { await viewModel.toggleLike(for: reply) }
                                     },
@@ -570,7 +580,7 @@ private struct VideoCommentRepliesSheet: View {
                                             placeholder: viewModel.inputPlaceholder ?? L10n.videoCommentsReplyPlaceholder
                                         )
                                     },
-                                    onOpenThread: nil
+                                    onOpenThread: {}
                                 )
                                 .onAppear {
                                     triggerLoadMoreIfNeeded(for: reply)

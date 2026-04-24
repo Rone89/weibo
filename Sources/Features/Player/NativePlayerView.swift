@@ -807,95 +807,25 @@ private struct NativePlayerFullscreenView: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            VStack(spacing: 16) {
-                Spacer(minLength: 0)
-                InteractivePlayerSurface(
-                    viewModel: viewModel,
-                    isFullscreen: true,
-                    showsChrome: true,
-                    aspectMode: aspectMode,
-                    onSelectAspectMode: onSelectAspectMode,
-                    onToggleFullscreen: {
-                        isPresented = false
-                    }
-                )
-                .aspectRatio(16 / 9, contentMode: .fit)
-
-                fullscreenInfoBar
-                    .padding(.horizontal, 16)
-
-                Spacer(minLength: 0)
-            }
+            InteractivePlayerSurface(
+                viewModel: viewModel,
+                isFullscreen: true,
+                showsChrome: true,
+                aspectMode: aspectMode,
+                onSelectAspectMode: onSelectAspectMode,
+                onToggleFullscreen: {
+                    isPresented = false
+                }
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .statusBarHidden(true)
-    }
-
-    private var fullscreenInfoBar: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(viewModel.video.title)
-                .font(.headline.weight(.bold))
-                .foregroundStyle(.white)
-                .lineLimit(2)
-
-            if let note = viewModel.source?.note, !note.isEmpty {
-                Text(note)
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.78))
-                    .lineLimit(2)
-            } else {
-                Text(L10n.playerGestureHint)
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.78))
-                    .lineLimit(2)
-            }
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    fullscreenPill(viewModel.video.authorName, systemImage: "person.fill")
-
-                    if let selectedPage = viewModel.selectedPage {
-                        fullscreenPill(
-                            L10n.pageTitle(page: selectedPage.page, part: selectedPage.part),
-                            systemImage: "list.number"
-                        )
-                    }
-
-                    if let quality = viewModel.source?.currentQualityLabel, !quality.isEmpty {
-                        fullscreenPill(quality, systemImage: "sparkles.tv")
-                    }
-
-                    fullscreenPill(viewModel.playbackRateLabel, systemImage: "speedometer")
-                    Menu {
-                        ForEach(PlayerAspectMode.allCases) { mode in
-                            Button(mode.title) {
-                                onSelectAspectMode(mode)
-                            }
-                        }
-                    } label: {
-                        fullscreenPill(aspectMode.title, systemImage: aspectMode.systemImage)
-                    }
-                }
-            }
+        .onAppear {
+            PlayerOrientationController.shared.requestLandscape()
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(.white.opacity(0.08))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(.white.opacity(0.08), lineWidth: 0.8)
-        )
-    }
-
-    private func fullscreenPill(_ text: String, systemImage: String) -> some View {
-        Label(text, systemImage: systemImage)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(.white.opacity(0.12), in: Capsule())
+        .onDisappear {
+            PlayerOrientationController.shared.requestPortrait()
+        }
     }
 }
 
@@ -1011,6 +941,12 @@ private struct InteractivePlayerSurface: View {
                     VStack(alignment: .leading, spacing: 8) {
                         if let quality = viewModel.source?.currentQualityLabel {
                             playerBadge("\(L10n.currentQuality): \(quality)", systemImage: "sparkles.tv")
+                        }
+                        if let selectedPage = viewModel.selectedPage {
+                            playerBadge(
+                                L10n.pageTitle(page: selectedPage.page, part: selectedPage.part),
+                                systemImage: "list.number"
+                            )
                         }
                         playerBadge("\(L10n.playerAspectTitle): \(aspectMode.title)", systemImage: aspectMode.systemImage)
                         if isSpeedBoostActive {
@@ -1543,6 +1479,28 @@ private struct PlayerSurfaceStyle: ViewModifier {
             content
                 .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         }
+    }
+}
+
+private final class PlayerOrientationController {
+    static let shared = PlayerOrientationController()
+
+    func requestLandscape() {
+        request(mask: .landscapeRight)
+    }
+
+    func requestPortrait() {
+        request(mask: .portrait)
+    }
+
+    private func request(mask: UIInterfaceOrientationMask) {
+        guard #available(iOS 16.0, *) else { return }
+        guard let windowScene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first else { return }
+
+        let preferences = UIWindowScene.GeometryPreferences.iOS(interfaceOrientations: mask)
+        windowScene.requestGeometryUpdate(preferences) { _ in }
     }
 }
 

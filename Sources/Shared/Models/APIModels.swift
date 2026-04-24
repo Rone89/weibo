@@ -264,6 +264,7 @@ struct VideoDetail: Hashable {
     let authorID: Int?
     let authorAvatarURL: String?
     let viewCount: Int?
+    let replyCount: Int?
     var likeCount: Int?
     var danmakuCount: Int?
     var favoriteCount: Int?
@@ -289,6 +290,7 @@ struct VideoDetail: Hashable {
         self.authorID = JSONValue.int(owner?["mid"])
         self.authorAvatarURL = JSONValue.string(owner?["face"])?.normalizedBiliURLString
         self.viewCount = JSONValue.int(stat?["view"])
+        self.replyCount = JSONValue.int(stat?["reply"])
         self.likeCount = JSONValue.int(stat?["like"])
         self.danmakuCount = JSONValue.int(stat?["danmaku"])
         self.favoriteCount = JSONValue.int(stat?["favorite"])

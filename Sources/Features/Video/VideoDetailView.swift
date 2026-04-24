@@ -3,9 +3,6 @@ import SwiftUI
 struct VideoDetailView: View {
     @StateObject var viewModel: VideoDetailViewModel
     @State private var selectedPage: VideoDetailPage?
-    @State private var playerResetSeed = 0
-    @State private var shouldIgnoreResume = false
-    @State private var isDescriptionExpanded = false
     @State private var isPresentingFavoritePicker = false
     @State private var playerPanelMinY: CGFloat = 0
     @State private var hasReachedComments = false
@@ -18,7 +15,7 @@ struct VideoDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 playerPanel
-                titleSection
+                infoSection
 
                 if let errorMessage = viewModel.errorMessage {
                     messageCard(text: errorMessage, tint: .red)
@@ -28,7 +25,6 @@ struct VideoDetailView: View {
                     messageCard(text: actionMessage, tint: Color("AccentColor"))
                 }
 
-                creatorCard
                 actionPanel
                 commentsSection
 
@@ -37,7 +33,6 @@ struct VideoDetailView: View {
                         VStack(spacing: 10) {
                             ForEach(detail.pages) { page in
                                 Button {
-                                    shouldIgnoreResume = false
                                     selectedPage = page
                                 } label: {
                                     HStack {
@@ -154,16 +149,11 @@ struct VideoDetailView: View {
     private var playerReloadKey: String {
         let bvid = viewModel.detail?.bvid ?? viewModel.seedVideo.bvid
         let cid = selectedPage?.cid ?? viewModel.detail?.pages.first?.cid ?? viewModel.seedVideo.cid ?? 0
-        return "\(bvid)-\(cid)-\(playerResetSeed)"
+        return "\(bvid)-\(cid)"
     }
 
     private var effectiveInitialSeekSeconds: TimeInterval? {
-        if shouldIgnoreResume {
-            return nil
-        }
-
-        let remoteProgress = selectedPage?.cid == viewModel.remoteResumeCID ? viewModel.remoteResumeSeconds : nil
-        return remoteProgress
+        selectedPage?.cid == viewModel.remoteResumeCID ? viewModel.remoteResumeSeconds : nil
     }
 
     private var playerPanel: some View {
@@ -212,103 +202,65 @@ struct VideoDetailView: View {
         .zIndex(shouldDockPlayer ? 10 : 0)
     }
 
-    private var titleSection: some View {
+    private var infoSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(currentTitle)
                 .font(.title3.weight(.bold))
                 .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            HStack(spacing: 10) {
-                BiliMetricPill(
-                    text: BiliFormatting.duration(currentPlayableVideo.duration),
-                    systemImage: "clock.fill",
-                    tint: .blue
-                )
+            HStack(spacing: 12) {
+                if let creatorReference {
+                    NavigationLink(value: creatorReference) {
+                        HStack(spacing: 10) {
+                            AsyncPosterImage(
+                                urlString: viewModel.detail?.authorAvatarURL ?? viewModel.seedVideo.authorAvatarURL,
+                                width: 44,
+                                height: 44
+                            )
+                            .clipShape(Circle())
 
-                if let published = viewModel.detail?.publishDate ?? viewModel.seedVideo.publishDate {
-                    BiliMetricPill(
-                        text: BiliFormatting.relativeDate(published),
-                        systemImage: "calendar",
-                        tint: .orange
-                    )
-                }
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(viewModel.detail?.authorName ?? viewModel.seedVideo.authorName)
+                                    .font(.subheadline.weight(.bold))
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(1)
+                                Text(L10n.detailAuthorSubtitle)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
 
-                if let selectedPage {
-                    BiliMetricPill(
-                        text: L10n.pageTitle(page: selectedPage.page, part: selectedPage.part),
-                        systemImage: "list.number",
-                        tint: .pink
-                    )
-                }
-            }
+                            Spacer(minLength: 8)
 
-            VStack(alignment: .leading, spacing: 10) {
-                Text(descriptionText)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(needsDescriptionExpansion && !isDescriptionExpanded ? 4 : nil)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                if needsDescriptionExpansion {
-                    Button(isDescriptionExpanded ? L10n.videoDetailCollapseDescription : L10n.videoDetailExpandDescription) {
-                        withAnimation(.easeInOut(duration: 0.16)) {
-                            isDescriptionExpanded.toggle()
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
                         }
                     }
                     .buttonStyle(.plain)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Color("AccentColor"))
-                }
-            }
-            .padding(16)
-            .biliListCardStyle(cornerRadius: 24, tint: .blue)
-        }
-        .padding(18)
-        .biliListCardStyle()
-    }
-
-    private var creatorCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            BiliSectionHeader(
-                title: viewModel.detail?.authorName ?? viewModel.seedVideo.authorName,
-                subtitle: L10n.detailAuthorSubtitle
-            )
-
-            HStack(spacing: 10) {
-                Image(systemName: "person.crop.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(Color("AccentColor"))
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(L10n.uid(viewModel.detail?.authorID ?? viewModel.seedVideo.authorID ?? 0))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(
-                        BiliFormatting.relativeDate(
-                            viewModel.detail?.publishDate ?? viewModel.seedVideo.publishDate
+                } else {
+                    HStack(spacing: 10) {
+                        AsyncPosterImage(
+                            urlString: viewModel.detail?.authorAvatarURL ?? viewModel.seedVideo.authorAvatarURL,
+                            width: 44,
+                            height: 44
                         )
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
+                        .clipShape(Circle())
 
-                Spacer()
-
-                if let creatorReference {
-                    NavigationLink(value: creatorReference) {
-                        BiliSymbolOrb(systemImage: "person.crop.circle", tint: .blue, size: 38, lightweight: true)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(viewModel.detail?.authorName ?? viewModel.seedVideo.authorName)
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(.primary)
+                            Text(L10n.detailAuthorSubtitle)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
-                    .buttonStyle(.plain)
-                }
-
-                if let currentPage = selectedPage {
-                    BiliMetricPill(
-                        text: L10n.pageTitle(page: currentPage.page, part: currentPage.part),
-                        systemImage: "list.number"
-                    )
                 }
             }
+            .padding(14)
+            .biliListCardStyle(cornerRadius: 22, tint: .blue)
 
             HStack(spacing: 10) {
                 BiliMetricPill(
@@ -316,8 +268,9 @@ struct VideoDetailView: View {
                     systemImage: "play.fill"
                 )
                 BiliMetricPill(
-                    text: BiliFormatting.compactCount(viewModel.detail?.danmakuCount ?? viewModel.seedVideo.danmakuCount),
-                    systemImage: "text.bubble.fill"
+                    text: BiliFormatting.compactCount(viewModel.displayedReplyCount),
+                    systemImage: "text.bubble.fill",
+                    tint: .blue
                 )
                 BiliMetricPill(
                     text: BiliFormatting.compactCount(viewModel.displayedLikeCount),
@@ -332,7 +285,7 @@ struct VideoDetailView: View {
 
     private var actionPanel: some View {
         VStack(alignment: .leading, spacing: 14) {
-            BiliSectionHeader(title: L10n.actionPanelTitle, subtitle: actionPanelSubtitle)
+            BiliSectionHeader(title: L10n.actionPanelTitle)
 
             if !viewModel.hasSession {
                 Text(L10n.videoInteractionLoginHint)
@@ -340,11 +293,11 @@ struct VideoDetailView: View {
                     .foregroundStyle(.secondary)
             }
 
-            LazyVGrid(columns: actionColumns, spacing: 12) {
+            HStack(spacing: 12) {
                 Button {
                     Task { await viewModel.toggleLike() }
                 } label: {
-                    interactionTile(
+                    compactInteractionButton(
                         title: viewModel.isLiked ? L10n.videoUnlikeAction : L10n.videoLikeAction,
                         value: BiliFormatting.compactCount(viewModel.displayedLikeCount),
                         systemImage: viewModel.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup",
@@ -370,7 +323,7 @@ struct VideoDetailView: View {
                         }
                     }
                 } label: {
-                    interactionTile(
+                    compactInteractionButton(
                         title: L10n.videoCoinAction,
                         value: BiliFormatting.compactCount(viewModel.displayedCoinCount),
                         systemImage: "centsign.circle.fill",
@@ -389,7 +342,7 @@ struct VideoDetailView: View {
                         Task { await viewModel.loadFavoriteFoldersIfNeeded() }
                     }
                 } label: {
-                    interactionTile(
+                    compactInteractionButton(
                         title: viewModel.isFavorited ? L10n.videoFavoriteRemoveAction : L10n.addFavorite,
                         value: BiliFormatting.compactCount(viewModel.displayedFavoriteCount),
                         systemImage: viewModel.isFavorited ? "star.fill" : "star",
@@ -400,36 +353,10 @@ struct VideoDetailView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(!viewModel.hasSession || viewModel.isSubmittingFavorite)
-
-                Button {
-                    shouldIgnoreResume = true
-                    playerResetSeed += 1
-                } label: {
-                    interactionTile(
-                        title: L10n.playFromBeginning,
-                        value: shouldShowRestartAction ? remoteWatchingText : L10n.videoInteractionRestartSubtitle,
-                        systemImage: "gobackward",
-                        tint: .teal,
-                        isActive: shouldShowRestartAction
-                    )
-                }
-                .buttonStyle(.plain)
-                .disabled(currentPlayableVideo.cid == nil)
             }
         }
         .padding(18)
         .biliListCardStyle()
-    }
-
-    private var actionColumns: [GridItem] {
-        [
-            GridItem(.flexible(), spacing: 12),
-            GridItem(.flexible(), spacing: 12)
-        ]
-    }
-
-    private var shouldShowRestartAction: Bool {
-        viewModel.hasRemoteResume
     }
 
     private var shouldDockPlayer: Bool {
@@ -448,10 +375,6 @@ struct VideoDetailView: View {
             name: viewModel.detail?.authorName ?? viewModel.seedVideo.authorName,
             avatarURL: viewModel.detail?.authorAvatarURL ?? viewModel.seedVideo.authorAvatarURL
         )
-    }
-
-    private var actionPanelSubtitle: String {
-        viewModel.hasSession ? L10n.actionPanelSubtitle : L10n.videoInteractionLoginSubtitle
     }
 
     private var coinMenuOptions: [VideoCoinMenuOption] {
@@ -489,33 +412,7 @@ struct VideoDetailView: View {
         .background(commentsThresholdTracker)
     }
 
-    private var descriptionText: String {
-        let rawText = viewModel.detail?.description ?? viewModel.seedVideo.subtitle ?? L10n.noDescription
-        let normalized = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
-        return normalized.isEmpty ? L10n.noDescription : normalized
-    }
-
-    private var needsDescriptionExpansion: Bool {
-        descriptionText.count > 120 || descriptionText.filter(\.isNewline).count >= 2
-    }
-
-    private var remoteWatchingText: String {
-        guard let remoteResumeSeconds = viewModel.remoteResumeSeconds,
-              remoteResumeSeconds > 5 else {
-            return L10n.videoDetailWatchingEmpty
-        }
-
-        if let selectedPage,
-           let duration = selectedPage.duration,
-           selectedPage.cid == viewModel.remoteResumeCID,
-           duration > 0 {
-            return "\(BiliFormatting.duration(Int(remoteResumeSeconds.rounded()))) / \(BiliFormatting.duration(duration))"
-        }
-
-        return L10n.videoRemoteResume(BiliFormatting.duration(Int(remoteResumeSeconds.rounded())))
-    }
-
-    private func interactionTile(
+    private func compactInteractionButton(
         title: String,
         value: String,
         systemImage: String,
@@ -523,35 +420,42 @@ struct VideoDetailView: View {
         isActive: Bool = false,
         isLoading: Bool = false
     ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
                 if isLoading {
                     ProgressView()
                         .tint(tint)
-                        .frame(width: 36, height: 36)
+                        .frame(width: 30, height: 30)
                 } else {
                     BiliSymbolOrb(
                         systemImage: systemImage,
                         tint: tint,
-                        size: 36,
+                        size: 30,
                         lightweight: true
                     )
                 }
-                Spacer(minLength: 8)
-            }
 
-            Text(value)
-                .font(.headline.weight(.bold))
-                .foregroundStyle(.primary)
-                .lineLimit(2)
+                Text(value)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+            }
 
             Text(title)
                 .font(.caption)
                 .foregroundStyle(isActive ? tint : .secondary)
+                .lineLimit(2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .biliListCardStyle(cornerRadius: 24, tint: tint, interactive: true)
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color(.secondarySystemBackground).opacity(0.96))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(tint.opacity(0.12), lineWidth: 0.9)
+        )
     }
 
     private func section<Content: View>(title: String, subtitle: String? = nil, @ViewBuilder content: () -> Content) -> some View {
